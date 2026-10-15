@@ -51,6 +51,31 @@
   .ok { color: #1c7a3d; font-size: 14px; margin-top: 8px; }
   .celebrate { text-align: center; font-size: 20px; padding: 10px; }
   .hidden { display: none !important; }
+  /* 魔法放大鏡框題：裁切畫布 */
+  #crop-wrap { position: relative; margin-top: 10px; display: none; }
+  #crop-canvas { max-width: 100%; border-radius: 12px; touch-action: none; cursor: crosshair;
+                 display: block; }
+  #crop-hint { font-size: 14px; color: #b8860b; margin: 8px 0; }
+  .crop-btns { display: flex; gap: 10px; margin-top: 8px; }
+  .crop-btns button { flex: 1; font-size: 17px; padding: 14px; }
+  /* 過關獎勵：彩帶動畫 */
+  .confetti { position: fixed; top: -20px; font-size: 24px; z-index: 9999;
+              animation: fall linear forwards; pointer-events: none; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+  .star-burst { text-align: center; font-size: 22px; padding: 12px;
+                animation: pop .5s ease; }
+  @keyframes pop { 0% { transform: scale(.3); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
+  /* 家長儀表板 */
+  #parent-dash { background: #f0f7ff; border: 2px solid #90cdf4; border-radius: 14px;
+                padding: 14px; margin: 12px 0; font-size: 15px; line-height: 1.8; }
+  #parent-dash h4 { margin: 0 0 8px; color: #2b6cb0; font-size: 16px; }
+  .dash-stat { display: inline-block; background: #fff; border-radius: 10px; padding: 6px 14px;
+               margin: 4px; font-size: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  /* 兒童化：更大的按鈕與字體 */
+  .choices button { font-size: 19px; padding: 16px; }
+  .say-row input { font-size: 17px; padding: 14px; }
+  .say-row button { font-size: 16px; }
+  .bubble { font-size: 19px; }
 </style>
 </head>
 <body>
@@ -72,11 +97,31 @@
 
 <div class="card">
   <h3>📸 第 1 步：拍下不會的題目</h3>
-  <input type="file" id="photo" accept="image/*" capture="environment" style="font-size:15px;">
-  <br><br>
+  <input type="file" id="photo" accept="image/*" capture="environment" style="font-size:17px;">
+  <div id="crop-wrap">
+    <div id="crop-hint">🔍 用手指在圖上框出不會的那一題（可省 70% 流量、辨識更準）</div>
+    <canvas id="crop-canvas"></canvas>
+    <div class="crop-btns">
+      <button class="btn-teal" id="crop-ok" onclick="confirmCrop()">✂️ 就用框起來的部分</button>
+      <button class="btn-gray" onclick="useFullImage()">📷 用整張照片</button>
+    </div>
+  </div>
+  <br>
   <button id="go-btn" onclick="recognize()" disabled>🔍 辨識題目</button>
   <img id="preview" alt="題目預覽">
   <div id="rec-err" class="err"></div>
+</div>
+
+<div class="card hidden" id="parent-dash-card">
+  <div id="parent-dash">
+    <h4>📋 家長學情小紙條</h4>
+    <div>
+      <span class="dash-stat">✅ 今日解開 <b id="dash-solved">0</b> 題</span>
+      <span class="dash-stat">⭐ 星星 <b id="dash-stars">0</b></span>
+      <span class="dash-stat">💬 已對話 <b id="dash-turns">0</b> 輪</span>
+    </div>
+    <div id="dash-stuck" style="margin-top:8px;">🎯 卡關紀錄：尚無</div>
+  </div>
 </div>
 
 <div class="card hidden" id="chat">
@@ -234,6 +279,122 @@ async function callGemini(contents, stageKey) {
   throw new Error("API_ERROR 503: 所有模型都在忙碌中，請稍後再試");
 }
 
+/* ===== 魔法放大鏡框題：圖片裁切 ===== */
+let cropImg = null;       // 載入的原始圖片
+let cropRect = null;      // 使用者框選的區域 {x,y,w,h}（canvas 座標）
+let cropScale = 1;        // canvas 顯示 vs 原圖的縮放比
+let cropB64 = null;       // 最終要送出的圖片 base64（框選或整張）
+let isDragging = false, dragStart = null;
+
+document.getElementById("photo").addEventListener("change", function(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    cropImg = img;
+    cropRect = null;
+    cropB64 = null;
+    const cv = document.getElementById("crop-canvas");
+    // 顯示寬度不超過 560，算出縮放比
+    const dispW = Math.min(560, img.width);
+    cropScale = img.width / dispW;
+    cv.width = dispW;
+    cv.height = Math.round(img.height / cropScale);
+    drawCropCanvas();
+    document.getElementById("crop-wrap").style.display = "block";
+    document.getElementById("preview").style.display = "none";
+  };
+  img.onerror = () => alert("圖片讀取失敗，請重拍一張");
+  img.src = URL.createObjectURL(f);
+});
+
+function drawCropCanvas() {
+  const cv = document.getElementById("crop-canvas");
+  const ctx = cv.getContext("2d");
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(cropImg, 0, 0, cv.width, cv.height);
+  if (cropRect) {
+    // 半透明遮罩 + 框選區高亮
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.clearRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+    ctx.drawImage(cropImg,
+      cropRect.x * cropScale, cropRect.y * cropScale, cropRect.w * cropScale, cropRect.h * cropScale,
+      cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+    ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 4;
+    ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+    // 四角手柄
+    ctx.fillStyle = "#ffd166";
+    [[cropRect.x, cropRect.y], [cropRect.x + cropRect.w, cropRect.y],
+     [cropRect.x, cropRect.y + cropRect.h], [cropRect.x + cropRect.w, cropRect.y + cropRect.h]]
+      .forEach(([x, y]) => { ctx.beginPath(); ctx.arc(x, y, 8, 0, 7); ctx.fill(); });
+  }
+}
+
+function cropPos(e) {
+  const cv = document.getElementById("crop-canvas");
+  const r = cv.getBoundingClientRect();
+  const t = e.touches ? e.touches[0] : e;
+  return { x: t.clientX - r.left, y: t.clientY - r.top };
+}
+(function initCropEvents() {
+  const cv = document.getElementById("crop-canvas");
+  cv.addEventListener("mousedown", e => { isDragging = true; dragStart = cropPos(e); cropRect = null; });
+  cv.addEventListener("touchstart", e => { isDragging = true; dragStart = cropPos(e); cropRect = null; e.preventDefault(); }, {passive: false});
+  const move = e => {
+    if (!isDragging || !dragStart) return;
+    const p = cropPos(e);
+    cropRect = {
+      x: Math.min(dragStart.x, p.x), y: Math.min(dragStart.y, p.y),
+      w: Math.abs(p.x - dragStart.x), h: Math.abs(p.y - dragStart.y)
+    };
+    drawCropCanvas();
+    if (e.touches) e.preventDefault();
+  };
+  const end = () => {
+    isDragging = false;
+    if (cropRect && (cropRect.w < 20 || cropRect.h < 20)) cropRect = null; // 太小算沒選
+    drawCropCanvas();
+  };
+  cv.addEventListener("mousemove", move);
+  cv.addEventListener("touchmove", move, {passive: false});
+  cv.addEventListener("mouseup", end);
+  cv.addEventListener("touchend", end);
+  cv.addEventListener("mouseleave", () => { isDragging = false; });
+})();
+
+function cropToB64() {
+  // 把（框選區或整張）轉成 base64（最長邊 800）
+  const c = document.createElement("canvas");
+  let sx = 0, sy = 0, sw = cropImg.width, sh = cropImg.height;
+  if (cropRect) {
+    sx = Math.round(cropRect.x * cropScale); sy = Math.round(cropRect.y * cropScale);
+    sw = Math.round(cropRect.w * cropScale); sh = Math.round(cropRect.h * cropScale);
+  }
+  const MAX = 800;
+  let dw = sw, dh = sh;
+  if (dw > MAX || dh > MAX) { const r = MAX / Math.max(dw, dh); dw = Math.round(dw * r); dh = Math.round(dh * r); }
+  c.width = dw; c.height = dh;
+  c.getContext("2d").drawImage(cropImg, sx, sy, sw, sh, 0, 0, dw, dh);
+  return c.toDataURL("image/jpeg", 0.8).split(",")[1];
+}
+
+function confirmCrop() {
+  if (!cropRect) { alert("請先用手指在圖上框出題目區域！"); return; }
+  cropB64 = cropToB64();
+  const prev = document.getElementById("preview");
+  prev.src = "data:image/jpeg;base64," + cropB64; prev.style.display = "block";
+  document.getElementById("crop-wrap").style.display = "none";
+}
+
+function useFullImage() {
+  cropRect = null;
+  cropB64 = cropToB64();
+  const prev = document.getElementById("preview");
+  prev.src = "data:image/jpeg;base64," + cropB64; prev.style.display = "block";
+  document.getElementById("crop-wrap").style.display = "none";
+}
+
 function compressImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -251,14 +412,18 @@ function compressImage(file) {
 }
 
 async function recognize() {
-  const f = document.getElementById("photo").files[0];
-  if (!f) { alert("請先拍照或選擇照片！"); return; }
   if (!key()) { alert("請先填入 Gemini API 金鑰！"); return; }
+  // 優先用框選裁切的圖；沒有才用整張上傳圖
+  let b64 = cropB64;
+  if (!b64) {
+    const f = document.getElementById("photo").files[0];
+    if (!f) { alert("請先拍照或選擇照片！"); return; }
+    b64 = await compressImage(f);
+  }
   const btn = document.getElementById("go-btn");
   btn.disabled = true; btn.textContent = "辨識中…";
   document.getElementById("rec-err").textContent = "";
   try {
-    const b64 = await compressImage(f);
     const prev = document.getElementById("preview");
     prev.src = "data:image/jpeg;base64," + b64; prev.style.display = "block";
     history = [{ role: "user", parts: [
@@ -295,6 +460,8 @@ async function sendText() {
 async function kidSays(t) {
   userSay(t);
   setChoices([]);
+  dashTurns++;
+  updateDash();
   document.getElementById("say").disabled = true;
   try {
     history.push({ role: "user", parts: [{ text: t }] });
@@ -313,14 +480,43 @@ async function kidSays(t) {
   }
 }
 
+/* ===== 家長儀表板統計 ===== */
+let dashSolved = 0, dashStars = 0, dashTurns = 0;
+const dashStuckSet = [];
+function updateDash() {
+  document.getElementById("dash-solved").textContent = dashSolved;
+  document.getElementById("dash-stars").textContent = dashStars;
+  document.getElementById("dash-turns").textContent = dashTurns;
+  document.getElementById("dash-stuck").innerHTML =
+    "🎯 卡關紀錄：" + (dashStuckSet.length ? dashStuckSet.map(esc).join("；") : "尚無");
+  document.getElementById("parent-dash-card").classList.remove("hidden");
+}
+function launchConfetti() {
+  const emojis = ["⭐", "🎉", "🌟", "💫", "🎊", "✨"];
+  for (let i = 0; i < 40; i++) {
+    const s = document.createElement("div");
+    s.className = "confetti";
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (2 + Math.random() * 2) + "s";
+    s.style.fontSize = (16 + Math.random() * 20) + "px";
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 4500);
+  }
+}
+
 function finishSolved() {
   stage = "DONE";
   setStage("DONE");
+  dashSolved++;
+  dashStars += 3;
+  updateDash();
+  launchConfetti();
   const d = document.createElement("div");
-  d.className = "celebrate";
-  d.textContent = "🎉🎉 太厲害了！你自己解出來了！問問獸幫你升級！🦖⬆️";
+  d.className = "star-burst";
+  d.textContent = "🎉🎉 太厲害了！你自己解出來了！+3⭐ 問問獸幫你升級！🦖⬆️";
   document.getElementById("msgs").appendChild(d);
-  speak("太厲害了！這題是你自己解出來的喔！");
+  speak("太厲害了！這題是你自己解出來的喔！給你三顆星星！");
 }
 
 function say(text, choices, rawOut) {
@@ -396,6 +592,9 @@ function addInsight(t) {
   insights.push(t);
   document.getElementById("insight").textContent = insights.join("；");
   document.getElementById("insight-box").style.display = "block";
+  // 同步到家長儀表板卡關紀錄（去重，最多保留 5 筆）
+  if (!dashStuckSet.includes(t) && dashStuckSet.length < 5) dashStuckSet.push(t);
+  updateDash();
 }
 let selectedVoiceURI = null;
 function pickBestVoice() {
@@ -451,12 +650,14 @@ function replay() { if (lastSpoken) speak(lastSpoken); }
 
 function resetAll() {
   history = []; stage = null; insights = [];
+  cropB64 = null; cropRect = null; cropImg = null;
   document.getElementById("msgs").innerHTML = "";
   document.getElementById("choices").innerHTML = "";
   document.getElementById("insight-box").style.display = "none";
   document.getElementById("chat").classList.add("hidden");
   document.getElementById("photo").value = "";
   document.getElementById("preview").style.display = "none";
+  document.getElementById("crop-wrap").style.display = "none";
   setStage(null);
   window.scrollTo(0, 0);
 }

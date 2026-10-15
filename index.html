@@ -113,7 +113,7 @@
 <p class="hint" style="text-align:center">PoC 概念驗證版 · 測試「拍照→辨識→三步驟蘇格拉底引導」劇本</p>
 
 <script>
-const MODELS = ["gemini-2.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.1-flash-lite", "gemini-2.5-flash"];  // 輕量省錢優先，503 自動換下一個
+const MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-lite-latest", "gemini-3.5-flash"];  // 輕量省錢優先，503 自動換下一個
 function endpointFor(m) { return `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`; }
 // 金鑰只保留在當次頁面記憶體（apiKey 變數），不寫入 localStorage／cookie
 

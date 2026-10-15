@@ -101,6 +101,10 @@
   <div style="margin-top:8px;font-size:13px;color:#888;">
     <label><input type="checkbox" id="debug-toggle" style="width:auto;"> 🔍 除錯模式（顯示 AI 原始 JSON）</label>
   </div>
+  <div style="margin-top:8px;font-size:13px;color:#888;">
+    🔊 語音：<select id="voice-select" style="font-size:13px;max-width:200px;"></select>
+    <button class="btn-gray" onclick="testVoice()" style="font-size:12px;padding:6px 12px;">試聽</button>
+  </div>
 </div>
 
 <div class="card test-zone">
@@ -213,7 +217,17 @@ async function callGemini(contents, stageKey) {
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
       const m = text.match(/\{[\s\S]*\}/);
       if (!m) throw new Error("BAD_JSON: " + text.slice(0, 200));
-      return JSON.parse(m[0]);
+      const parsed = JSON.parse(m[0]);
+      // 正規化回傳：相容不同欄位名稱
+      return {
+        spoken_text: parsed.spoken_text || parsed.text || parsed.response || parsed.message || "",
+        ui_choices: parsed.ui_choices || parsed.choices || [],
+        is_solved: !!parsed.is_solved,
+        parent_insight: parsed.parent_insight || parsed.insight || "",
+        title_text: parsed.title_text || "",
+        is_homework: parsed.is_homework !== false,
+        _raw: parsed
+      };
     }
   }
   // 所有模型都 503
@@ -383,15 +397,55 @@ function addInsight(t) {
   document.getElementById("insight").textContent = insights.join("；");
   document.getElementById("insight-box").style.display = "block";
 }
+let selectedVoiceURI = null;
+function pickBestVoice() {
+  const vs = speechSynthesis.getVoices().filter(v => v.lang.startsWith("zh"));
+  if (!vs.length) return null;
+  // 如果使用者手動選過，就用他的選擇
+  if (selectedVoiceURI) {
+    const found = vs.find(v => v.voiceURI === selectedVoiceURI);
+    if (found) return found;
+  }
+  // 優先順序：Google 國語 > zh-TW > 任何中文
+  return vs.find(v => v.name.includes("Google") && v.lang === "zh-TW")
+      || vs.find(v => v.name.includes("Google"))
+      || vs.find(v => v.lang === "zh-TW")
+      || vs[0];
+}
 function speak(text) {
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "zh-TW"; u.rate = 0.95;
-    const vs = speechSynthesis.getVoices().filter(v => v.lang.startsWith("zh"));
-    if (vs.length) u.voice = vs.find(v => v.lang === "zh-TW") || vs[0];
+    u.lang = "zh-TW";
+    u.rate = 0.95;
+    u.pitch = 1.1;  // 稍微提高音調，比較親切
+    const v = pickBestVoice();
+    if (v) u.voice = v;
     speechSynthesis.speak(u);
   } catch (e) {}
+}
+// 載入語音列表（有些瀏覽器需要非同步載入）
+if (typeof speechSynthesis !== "undefined") {
+  speechSynthesis.onvoiceschanged = () => { buildVoiceList(); };
+}
+function buildVoiceList() {
+  const sel = document.getElementById("voice-select");
+  if (!sel) return;
+  const vs = speechSynthesis.getVoices().filter(v => v.lang.startsWith("zh"));
+  sel.innerHTML = "";
+  vs.forEach(v => {
+    const o = document.createElement("option");
+    o.value = v.voiceURI;
+    o.textContent = `${v.name} (${v.lang})`;
+    if (selectedVoiceURI === v.voiceURI) o.selected = true;
+    sel.appendChild(o);
+  });
+  if (!vs.length) sel.innerHTML = '<option>沒有中文語音</option>';
+}
+function testVoice() {
+  const sel = document.getElementById("voice-select");
+  if (sel && sel.value) selectedVoiceURI = sel.value;
+  speak("哈囉！我是問問獸，很高興認識你！");
 }
 function replay() { if (lastSpoken) speak(lastSpoken); }
 

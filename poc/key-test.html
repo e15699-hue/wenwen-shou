@@ -20,6 +20,8 @@ button { background: #4ecdc4; color: white; border: none; padding: 12px 24px; fo
 <button onclick="test('gemini-1.5-flash')">測試 gemini-1.5-flash</button>
 <button onclick="test('gemini-3.8-flash')">測試 gemini-3.8-flash</button>
 <button onclick="testAll()">全部測試</button>
+<br><br>
+<button onclick="listModels()" style="background:#ff6b6b;">📋 列出我的 Key 可用的模型</button>
 <div id="result">等待測試…</div>
 <script>
 async function test(model) {
@@ -47,6 +49,28 @@ async function testAll() {
   for (const m of ['gemini-1.5-flash', 'gemini-3.8-flash', 'gemini-3.6-flash']) {
     await test(m);
     await new Promise(r => setTimeout(r, 1000));
+  }
+}
+async function listModels() {
+  const k = document.getElementById('apikey').value.trim();
+  const r = document.getElementById('result');
+  if (!k) { r.innerHTML = '<span class="err">請先貼上 API Key</span>'; return; }
+  r.textContent = '查詢可用模型中…';
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(k)}`);
+    const data = await res.json();
+    if (!res.ok) {
+      r.innerHTML = `<span class="err">❌ 查詢失敗 (${res.status})</span>\n${JSON.stringify(data, null, 2).slice(0, 800)}`;
+      return;
+    }
+    const models = (data.models || []).map(m => {
+      const name = m.name.replace('models/', '');
+      const methods = (m.supportedGenerationMethods || []).join(',');
+      return `• ${name} [${methods}]`;
+    });
+    r.innerHTML = `<span class="ok">✅ 你的 Key 可用模型（共 ${models.length} 個）：</span>\n${models.join('\n')}`;
+  } catch (e) {
+    r.innerHTML = `<span class="err">❌ 查詢錯誤</span>\n${e.message}`;
   }
 }
 </script>

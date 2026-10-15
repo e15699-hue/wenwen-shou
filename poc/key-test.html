@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Key 診斷測試</title>
+<style>
+body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+input { width: 100%; padding: 12px; font-size: 14px; margin: 10px 0; }
+button { background: #4ecdc4; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 8px; cursor: pointer; margin: 5px; }
+#result { background: #f5f5f5; border-radius: 8px; padding: 15px; margin-top: 15px; white-space: pre-wrap; font-size: 13px; }
+.ok { color: green; } .err { color: red; }
+</style>
+</head>
+<body>
+<h2>🔑 API Key 診斷測試</h2>
+<p>這個頁面只發最簡單的文字請求，不含圖片，用來判斷 Key 是否有效。</p>
+<input type="password" id="apikey" placeholder="貼上你的 Gemini API Key">
+<br>
+<button onclick="test('gemini-1.5-flash')">測試 gemini-1.5-flash</button>
+<button onclick="test('gemini-3.8-flash')">測試 gemini-3.8-flash</button>
+<button onclick="testAll()">全部測試</button>
+<div id="result">等待測試…</div>
+<script>
+async function test(model) {
+  const k = document.getElementById('apikey').value.trim();
+  const r = document.getElementById('result');
+  if (!k) { r.innerHTML = '<span class="err">請先貼上 API Key</span>'; return; }
+  r.textContent = `測試 ${model} 中…`;
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(k)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: '說「你好」' }] }] })
+    });
+    const txt = await res.text();
+    if (res.ok) {
+      r.innerHTML = `<span class="ok">✅ ${model} 成功！</span>\nKey 有效，模型可用。\n回應：${txt.slice(0, 200)}`;
+    } else {
+      r.innerHTML = `<span class="err">❌ ${model} 失敗 (${res.status})</span>\n${txt.slice(0, 500)}`;
+    }
+  } catch (e) {
+    r.innerHTML = `<span class="err">❌ ${model} 連線錯誤</span>\n${e.message}`;
+  }
+}
+async function testAll() {
+  for (const m of ['gemini-1.5-flash', 'gemini-3.8-flash', 'gemini-3.6-flash']) {
+    await test(m);
+    await new Promise(r => setTimeout(r, 1000));
+  }
+}
+</script>
+</body>
+</html>

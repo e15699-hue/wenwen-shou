@@ -115,7 +115,7 @@
 <script>
 const MODEL = "gemini-3.8-flash";
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
-const LS_KEY = "wenwenshou_gemini_key";
+// 金鑰只保留在當次頁面記憶體（apiKey 變數），不寫入 localStorage／cookie
 
 const ROLE = `你是「問問獸」，一隻溫暖、有耐心、會講台灣國小生口語的伴讀小怪獸。
 鐵律：
@@ -139,7 +139,7 @@ ui_choices 給「對，是這題」「不對，我重拍」；parent_insight 簡
   DONE: `小孩解出來了！熱烈慶祝，誇他很棒，說他學會了什麼。is_solved=true。`
 };
 
-let apiKey = localStorage.getItem(LS_KEY) || "";
+let apiKey = "";   // 只保留在當次頁面記憶體，關閉/重整即清除，不寫入任何儲存空間
 let history = [];      // Gemini contents
 let stage = null;
 let lastSpoken = "";
@@ -150,18 +150,13 @@ function key() { return apiKey || document.getElementById("apikey").value.trim()
 function saveKey() {
   const v = document.getElementById("apikey").value.trim();
   if (!v) { setKeyStatus("請先貼上金鑰", false); return; }
-  apiKey = v; localStorage.setItem(LS_KEY, v);
-  setKeyStatus("✅ 金鑰已儲存（存在這支手機瀏覽器）", true);
+  apiKey = v;
+  setKeyStatus("✅ 金鑰已載入（只留在此分頁記憶體，關閉或重整後需重貼）", true);
   document.getElementById("go-btn").disabled = false;
 }
 function setKeyStatus(msg, ok) {
   const el = document.getElementById("key-status");
   el.className = ok ? "ok" : "err"; el.textContent = msg;
-}
-if (apiKey) {
-  document.getElementById("apikey").value = apiKey;
-  setKeyStatus("✅ 已載入儲存的金鑰", true);
-  document.getElementById("go-btn").disabled = false;
 }
 
 async function callGemini(contents, stageKey) {

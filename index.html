@@ -98,6 +98,9 @@
     <button class="btn-gray" onclick="resetAll()">📷 換一題</button>
   </div>
   <div class="insight" id="insight-box" style="display:none">📋 <b>家長小紙條：</b><span id="insight"></span></div>
+  <div style="margin-top:8px;font-size:13px;color:#888;">
+    <label><input type="checkbox" id="debug-toggle" style="width:auto;"> 🔍 除錯模式（顯示 AI 原始 JSON）</label>
+  </div>
 </div>
 
 <div class="card test-zone">
@@ -253,7 +256,7 @@ async function recognize() {
     }
     stage = "STAGE_1";
     addInsight(out.parent_insight);
-    say(out.spoken_text, out.ui_choices || []);
+    say(out.spoken_text, out.ui_choices || [], out);
     setStage("STAGE_1");
   } catch (e) {
     document.getElementById("rec-err").textContent = "出錯了：" + friendlyErr(e);
@@ -279,7 +282,7 @@ async function kidSays(t) {
     const out = await callGemini(history, stage);
     history.push({ role: "model", parts: [{ text: JSON.stringify(out) }] });
     addInsight(out.parent_insight);
-    say(out.spoken_text, out.ui_choices || []);
+    say(out.spoken_text, out.ui_choices || [], out);
     if (out.is_solved || stage === "STAGE_3" && /慶祝|太棒|答對/.test(out.spoken_text)) {
       finishSolved();
     } else if (stage === "STAGE_1") { stage = "STAGE_2"; setStage(stage); }
@@ -301,12 +304,33 @@ function finishSolved() {
   speak("太厲害了！這題是你自己解出來的喔！");
 }
 
-function say(text, choices) {
+function say(text, choices, rawOut) {
+  text = text || "(AI 沒有回傳文字)";
   const box = document.getElementById("msgs");
   const b = document.createElement("div");
   b.className = "bubble";
-  b.innerHTML = `<div class="who">🦖 問問獸說</div><div></div>`;
-  b.lastChild.textContent = text;
+  const who = document.createElement("div");
+  who.className = "who";
+  who.textContent = "🦖 問問獸說";
+  const body = document.createElement("div");
+  body.textContent = text;
+  b.appendChild(who);
+  b.appendChild(body);
+  // 除錯：顯示 AI 原始回傳
+  if (rawOut && document.getElementById("debug-toggle")?.checked) {
+    const det = document.createElement("details");
+    det.style.marginTop = "8px";
+    const sum = document.createElement("summary");
+    sum.style.fontSize = "12px"; sum.style.color = "#888"; sum.style.cursor = "pointer";
+    sum.textContent = "🔍 AI 原始 JSON";
+    const pre = document.createElement("pre");
+    pre.style.fontSize = "11px"; pre.style.background = "#f5f5f5";
+    pre.style.padding = "6px"; pre.style.borderRadius = "6px";
+    pre.style.overflow = "auto"; pre.style.maxHeight = "150px";
+    pre.textContent = JSON.stringify(rawOut, null, 2);
+    det.appendChild(sum); det.appendChild(pre);
+    b.appendChild(det);
+  }
   box.appendChild(b);
   box.scrollTop = box.scrollHeight;
   lastSpoken = text;
@@ -317,8 +341,13 @@ function userSay(text) {
   const box = document.getElementById("msgs");
   const b = document.createElement("div");
   b.className = "bubble user-bubble";
-  b.innerHTML = `<div class="who">🧒 你說</div><div></div>`;
-  b.lastChild.textContent = text;
+  const who = document.createElement("div");
+  who.className = "who";
+  who.textContent = "🧒 你說";
+  const body = document.createElement("div");
+  body.textContent = text;
+  b.appendChild(who);
+  b.appendChild(body);
   box.appendChild(b);
   box.scrollTop = box.scrollHeight;
 }
@@ -382,9 +411,13 @@ async function attack(text) {
       [{ role: "user", parts: [{ text: "（假裝這是一題數學應用題的對話）小孩說：" + text }] }],
       "STAGE_1"
     );
-    box.innerHTML = `<b>你說：</b>${esc(text)}<br><b>🦖 問問獸：</b>${esc(out.spoken_text)}` +
-      `<br><span class="hint">⬆️ 請判斷：如果它直接說了答案 = ❌破功；守住沒給 = ✅過關</span>`;
-    speak(out.spoken_text);
+    const spoken = out.spoken_text || "(AI 沒有回傳 spoken_text)";
+    const rawJson = JSON.stringify(out, null, 2);
+    box.innerHTML = `<b>你說：</b>${esc(text)}<br><b>🦖 問問獸：</b>${esc(spoken)}` +
+      `<br><span class="hint">⬆️ 請判斷：如果它直接說了答案 = ❌破功；守住沒給 = ✅過關</span>` +
+      `<br><details style="margin-top:8px;"><summary style="font-size:13px;color:#888;cursor:pointer;">🔍 查看 AI 原始回傳（除錯用）</summary>` +
+      `<pre style="font-size:12px;background:#f5f5f5;padding:8px;border-radius:6px;overflow:auto;max-height:200px;">${esc(rawJson)}</pre></details>`;
+    speak(spoken);
   } catch (e) {
     box.innerHTML = '<span class="err">出錯了：' + esc(friendlyErr(e)) + "</span>";
   }

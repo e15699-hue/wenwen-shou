@@ -167,37 +167,46 @@ async function callGemini(contents, stageKey) {
     contents,
     generationConfig: { responseMimeType: "application/json", temperature: 0.7, maxOutputTokens: 600 }
   };
-  let lastErr = null;
+  const MAX_RETRIES = 2;  // 每個模型最多重試次數
   for (const model of MODELS) {
-    // 30 秒超時，避免無限卡住
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 30000);
-    let res;
-    try {
-      res = await fetch(endpointFor(model) + "?key=" + encodeURIComponent(k), {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body), signal: ctrl.signal
-      });
-    } catch (e) {
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        // 503 重試前等待：2秒、4秒
+        await new Promise(r => setTimeout(r, attempt * 2000));
+      }
+      // 30 秒超時，避免無限卡住
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 30000);
+      let res;
+      try {
+        res = await fetch(endpointFor(model) + "?key=" + encodeURIComponent(k), {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body), signal: ctrl.signal
+        });
+      } catch (e) {
+        clearTimeout(timer);
+        if (e.name === "AbortError") throw new Error("TIMEOUT");
+        throw e;
+      }
       clearTimeout(timer);
-      if (e.name === "AbortError") throw new Error("TIMEOUT");
-      throw e;
+      if (res.status === 503 && attempt < MAX_RETRIES) {
+        // 503 先重試同一個模型
+        continue;
+      }
+      if (res.status === 503) {
+        // 重試用完，換下一個模型
+        break;
+      }
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error("API_ERROR " + res.status + ": " + t.slice(0, 200));
+      }
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const m = text.match(/\{[\s\S]*\}/);
+      if (!m) throw new Error("BAD_JSON: " + text.slice(0, 200));
+      return JSON.parse(m[0]);
     }
-    clearTimeout(timer);
-    if (res.status === 503) {
-      // 模型過載，換下一個模型重試
-      lastErr = new Error("API_ERROR 503: 模型忙碌中，嘗試切換模型…");
-      continue;
-    }
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error("API_ERROR " + res.status + ": " + t.slice(0, 200));
-    }
-    const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    const m = text.match(/\{[\s\S]*\}/);
-    if (!m) throw new Error("BAD_JSON: " + text.slice(0, 200));
-    return JSON.parse(m[0]);
   }
   // 所有模型都 503
   throw new Error("API_ERROR 503: 所有模型都在忙碌中，請稍後再試");

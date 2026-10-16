@@ -1146,37 +1146,67 @@ const ANIMALS = [
     greeting: "喵～哈囉！我是咪咪！",
     praise: ["喵～太厲害了！", "咪咪覺得你好棒喵！", "喵嗚～答對了！"],
     encourage: "喵～再想想看，咪咪陪你！",
-    sound: "喵～" },
+    sound: "喵～",
+    evolutions: [
+      { name: "咪咪", img: "images/cat_stage1.png" },
+      { name: "星星咪", img: "images/cat_stage2.png" },
+      { name: "金冠咪", img: "images/cat_stage3.png" },
+    ] },
   { icon: "🐶", name: "豆豆", kind: "小狗", audioKey: "dog",
     pitch: 1.3, rate: 1.1,
     greeting: "汪汪！我是豆豆！",
     praise: ["汪！太棒了！", "豆豆好開心！你答對了！", "汪汪汪！厲害！"],
     encourage: "汪！再試一次，豆豆相信你！",
-    sound: "汪！" },
+    sound: "汪！",
+    evolutions: [
+      { name: "豆豆", img: "images/dog_stage1.png" },
+      { name: "項圈豆", img: "images/dog_stage2.png" },
+      { name: "星光豆", img: "images/dog_stage3.png" },
+    ] },
   { icon: "🐰", name: "跳跳", kind: "兔子", audioKey: "rabbit",
     pitch: 1.5, rate: 1.0,
     greeting: "嗨！我是跳跳！",
     praise: ["哇！你好聰明！", "跳跳好高興！答對了！", "太棒了！跳起來！"],
     encourage: "沒關係，跳跳陪你慢慢想！",
-    sound: "" },
+    sound: "",
+    evolutions: [
+      { name: "跳跳", img: "images/rabbit_stage1.png" },
+      { name: "花花跳", img: "images/rabbit_stage2.png" },
+      { name: "月影跳", img: "images/rabbit_stage3.png" },
+    ] },
   { icon: "🐼", name: "圓圓", kind: "熊貓", audioKey: "panda",
     pitch: 1.1, rate: 0.85,
     greeting: "嗨嗨，我是圓圓！",
     praise: ["圓圓覺得你超厲害！", "答對了！圓圓請你吃竹子！", "哇～好棒！"],
     encourage: "慢慢來，圓圓等你！",
-    sound: "" },
+    sound: "",
+    evolutions: [
+      { name: "圓圓", img: "images/panda_stage1.png" },
+      { name: "竹竹圓", img: "images/panda_stage2.png" },
+      { name: "金光圓", img: "images/panda_stage3.png" },
+    ] },
   { icon: "🦊", name: "小乖", kind: "狐狸", audioKey: "fox",
     pitch: 1.25, rate: 1.05,
     greeting: "嘿！我是聰明的小乖！",
     praise: ["小乖就知道你會答對！", "太聰明了！跟小乖一樣！", "答對了！真有你的！"],
     encourage: "動動腦，小乖相信你想得出來！",
-    sound: "" },
+    sound: "",
+    evolutions: [
+      { name: "小乖", img: "images/fox_stage1.png" },
+      { name: "蓬蓬乖", img: "images/fox_stage2.png" },
+      { name: "星尾乖", img: "images/fox_stage3.png" },
+    ] },
   { icon: "🐷", name: "胖胖", kind: "小豬", audioKey: "pig",
     pitch: 1.15, rate: 0.9,
     greeting: "哼哼！我是胖胖！",
     praise: ["哼哼！答對了！", "胖胖覺得你好厲害！", "哇！胖胖好佩服你！"],
     encourage: "哼哼，別急，慢慢想！",
-    sound: "哼哼！" },
+    sound: "哼哼！",
+    evolutions: [
+      { name: "胖胖", img: "images/pig_stage1.png" },
+      { name: "學士胖", img: "images/pig_stage2.png" },
+      { name: "胖皇", img: "images/pig_stage3.png" },
+    ] },
 ];
 /* 瀏覽器語音播放，播完才 resolve */
 function speakAndWait(text) {
@@ -1252,27 +1282,39 @@ function setAnimal(idx) {
 }
 function applyAnimal() {
   const a = getAnimal();
+  const evo = getEvolutionInfo(a.audioKey);
   const iconEls = ["animal-title-icon", "animal-big-icon"];
-  iconEls.forEach(id => { const el = document.getElementById(id); if (el) el.textContent = a.icon; });
+  iconEls.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      // 顯示進化圖片，如果載入失敗則顯示 emoji
+      el.innerHTML = `<img src="${evo.img}" alt="${evo.name}" style="width:1.2em;height:1.2em;object-fit:contain;vertical-align:middle;" onerror="this.style.display='none';this.parentElement.textContent='${a.icon}';">`;
+    }
+  });
   const nameEl = document.getElementById("animal-title-name");
   if (nameEl) nameEl.textContent = "問問" + a.kind;
   const tagEl = document.getElementById("animal-tagline");
-  if (tagEl) tagEl.textContent = "哈囉！我是" + a.name + "，" + a.kind + "來陪你學數學！";
+  if (tagEl) tagEl.textContent = `哈囉！我是${evo.name}，${a.kind}來陪你學數學！`;
   // 更新拍照問問題 tab
   const tabIcon = document.getElementById("tab-ask-icon");
   if (tabIcon) tabIcon.textContent = a.icon;
   const tabName = document.getElementById("tab-ask-name");
-  if (tabName) tabName.textContent = a.name;
+  if (tabName) tabName.textContent = evo.name;
 }
 function openAnimalPicker() {
   const grid = document.getElementById("animal-grid");
   grid.innerHTML = "";
   ANIMALS.forEach((a, i) => {
     const b = document.createElement("button");
-    b.style.cssText = "font-size:40px;padding:12px;border:3px solid #eee;border-radius:16px;background:#fff;cursor:pointer;";
+    b.style.cssText = "padding:12px;border:3px solid #eee;border-radius:16px;background:#fff;cursor:pointer;";
     if (getAnimal().name === a.name) b.style.borderColor = "#4CAF50";
     const lvl = getAnimalLevel(a.audioKey);
-    b.innerHTML = a.icon + '<div style="font-size:14px;margin-top:4px;">' + a.name + '</div><div style="font-size:12px;color:#999;">' + a.kind + '</div><div style="font-size:11px;color:#ff9800;font-weight:bold;">Lv.' + lvl + ' ' + getLevelTitle(lvl) + '</div>';
+    const evo = getEvolutionInfo(a.audioKey);
+    b.innerHTML = `<img src="${evo.img}" alt="${evo.name}" style="width:64px;height:64px;object-fit:contain;" onerror="this.style.display='none';">` +
+      '<div style="font-size:40px;">' + a.icon + '</div>' +
+      '<div style="font-size:14px;margin-top:4px;font-weight:bold;">' + evo.name + '</div>' +
+      '<div style="font-size:12px;color:#999;">' + a.kind + '</div>' +
+      '<div style="font-size:11px;color:#ff9800;font-weight:bold;">Lv.' + lvl + ' ' + getLevelTitle(lvl) + '</div>';
     b.onclick = () => setAnimal(i);
     grid.appendChild(b);
   });
@@ -1937,12 +1979,24 @@ function addAnimalXP(audioKey, amount) {
   // 升級慶祝
   if (newLevel > oldLevel) {
     const a = ANIMALS.find(x => x.audioKey === audioKey);
+    const oldStage = oldLevel >= 7 ? 2 : oldLevel >= 3 ? 1 : 0;
+    const newStage = newLevel >= 7 ? 2 : newLevel >= 3 ? 1 : 0;
+    const evoChanged = newStage > oldStage;
+    const newEvoName = a.evolutions[newStage].name;
     setTimeout(() => {
-      const msg = `🎉 恭喜！${a.name}升級到 Lv.${newLevel}「${getLevelTitle(newLevel)}」了！`;
+      let msg = `🎉 恭喜！${a.name}升級到 Lv.${newLevel}「${getLevelTitle(newLevel)}」了！`;
+      if (evoChanged) {
+        msg += `\n🌟 進化了！變成「${newEvoName}」！`;
+      }
       // 用對話框顯示升級
       if (confirm(msg + "\n要繼續玩嗎？")) {}
-      speak(`太棒了！${a.name}升級了！現在是${getLevelTitle(newLevel)}！`);
+      let speakMsg = `太棒了！${a.name}升級了！現在是${getLevelTitle(newLevel)}！`;
+      if (evoChanged) {
+        speakMsg += `進化成${newEvoName}了！`;
+      }
+      speak(speakMsg);
       launchConfetti();
+      applyAnimal(); // 更新顯示進化後的圖片
     }, 800);
   }
 }
@@ -1953,14 +2007,28 @@ function updateDailyPointsDisplay() {
     el.textContent = `今日 ${today}/${DAILY_POINTS_CAP}`;
   }
 }
+function getEvolutionStage(audioKey) {
+  const level = getAnimalLevel(audioKey);
+  if (level >= 7) return 2;
+  if (level >= 3) return 1;
+  return 0;
+}
+function getEvolutionInfo(audioKey) {
+  const a = ANIMALS.find(x => x.audioKey === audioKey);
+  const stage = getEvolutionStage(audioKey);
+  return a.evolutions[stage];
+}
 function updateAnimalLevelDisplay() {
   const a = getAnimal();
   const level = getAnimalLevel(a.audioKey);
   const xp = getAnimalXP(a.audioKey);
   const progress = (xp % XP_PER_LEVEL) / XP_PER_LEVEL * 100;
+  const evo = getEvolutionInfo(a.audioKey);
+  const stageNames = ["第一階", "第二階", "最終階"];
+  const stage = getEvolutionStage(a.audioKey);
   const el = document.getElementById("animal-level");
   if (el) {
-    el.innerHTML = `Lv.${level} ${getLevelTitle(level)} <div class="xp-bar"><div class="xp-fill" style="width:${progress}%"></div></div>`;
+    el.innerHTML = `${evo.name} Lv.${level} ${getLevelTitle(level)} <span style="color:#999;font-size:12px;">(${stageNames[stage]})</span><div class="xp-bar"><div class="xp-fill" style="width:${progress}%"></div></div>`;
   }
 }
 

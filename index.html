@@ -269,7 +269,8 @@
 <div id="kid-zone" style="display:none;">
 <h1><span id="animal-title-icon">🐱</span> <span id="animal-title-name">問問小動物</span></h1>
 <div class="monster" id="animal-big-icon" style="cursor:grab;min-height:110px;display:flex;align-items:center;justify-content:center;position:relative;z-index:100;touch-action:none;user-select:none;-webkit-user-select:none;" title="拖我到處走！點我會開心喔！">🐱</div>
-<p class="tagline"><span id="animal-tagline">遇到不會的題目，拍照問我就對了！</span><br>沒事也可以來玩隨機出題，越玩越厲害！💪<br><span style="font-size:13px;color:#999;">👆 拖拉小動物到處走，點牠會開心喔！ <a href="javascript:openAnimalPicker()" style="color:#4CAF50;">換小動物</a></span></p>
+<p class="tagline"><span id="animal-tagline">遇到不會的題目，拍照問我就對了！</span><br>沒事也可以來玩隨機出題，越玩越厲害！💪<br><span style="font-size:13px;color:#999;">👆 拖拉小動物到處走，點牠會開心喔！</span><br>
+<button onclick="openAnimalPicker()" style="margin-top:8px;padding:10px 24px;font-size:16px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#66bb6a,#43a047);border:none;border-radius:25px;cursor:pointer;box-shadow:0 3px 8px rgba(76,175,80,.4);">🔄 換小動物</button></p>
 
 <!-- 小動物選擇器 -->
 <div id="animal-picker" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center;">
@@ -1353,11 +1354,11 @@ function applyAnimal() {
     setTimeout(() => { target.style.transform = "scale(1) rotate(0deg)"; }, 180);
     setTimeout(() => { target.style.transform = "scale(1.15)"; }, 360);
     setTimeout(() => { target.style.transform = "scale(1)"; target.style.transition = ""; }, 540);
-    // 叫聲
+    // 用預錄的動物原音（greeting），不用 Google 小姐
     try {
       const a = getAnimal();
-      if (a.sound) speak(a.sound);
-      else speak(a.name + "好開心！");
+      const audio = new Audio(`audio/${a.audioKey}_greeting.mp3`);
+      audio.play().catch(() => {});
     } catch (err) {}
   }
   document.addEventListener("DOMContentLoaded", () => {

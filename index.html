@@ -354,11 +354,7 @@
     <div class="quiz-q" id="quiz-question">題目載入中…</div>
     <div class="quiz-hint-box" id="quiz-hint" style="display:none;"></div>
     <div class="quiz-feedback" id="quiz-feedback"></div>
-    <div class="say-row">
-      <input type="text" id="quiz-answer" placeholder="在這裡輸入答案…" inputmode="decimal"
-             style="font-size:20px;padding:16px;text-align:center;">
-      <button class="btn-teal" onclick="submitQuizAnswer()" style="font-size:19px;">送出</button>
-    </div>
+    <div class="choices" id="quiz-options" style="margin-top:12px;"></div>
     <div id="quiz-err" class="err"></div>
   </div>
   <div id="quiz-result" style="display:none;text-align:center;padding:20px;"></div>
@@ -1198,8 +1194,7 @@ async function nextQuizQuestion() {
   document.getElementById("quiz-hint").style.display = "none";
   document.getElementById("quiz-feedback").textContent = "";
   document.getElementById("quiz-feedback").className = "quiz-feedback";
-  document.getElementById("quiz-answer").value = "";
-  document.getElementById("quiz-answer").disabled = false;
+  document.getElementById("quiz-options").innerHTML = "";
   document.getElementById("quiz-num").textContent = quizIdx + 1;
   const qEl = document.getElementById("quiz-question");
   qEl.textContent = "🦖 問問獸想題目中…";
@@ -1224,6 +1219,8 @@ async function nextQuizQuestion() {
     // 顯示題型標籤
     qEl.innerHTML = `<div style="font-size:14px;color:#b8860b;margin-bottom:8px;">【${esc(q.type || "數學題")}】</div><div>${esc(q.question)}</div>`;
     speak(q.question);
+    // 渲染選項按鈕
+    renderQuizOptions(q);
   } catch (e) {
     qEl.textContent = "出題失敗了…";
     document.getElementById("quiz-err").textContent = friendlyErr(e);
@@ -1231,24 +1228,51 @@ async function nextQuizQuestion() {
   updateQuizProgress();
 }
 
+/* 渲染選項按鈕（不用打字，用按的） */
+function renderQuizOptions(q) {
+  const box = document.getElementById("quiz-options");
+  box.innerHTML = "";
+  const opts = q.options;
+  if (!opts || !opts.length) {
+    // 沒有選項（AI fallback）：顯示提示
+    box.innerHTML = '<p class="hint">這題沒有選項，請用問問獸模式作答。</p>';
+    return;
+  }
+  opts.forEach(opt => {
+    const b = document.createElement("button");
+    b.className = "btn-teal";
+    b.style.fontSize = "22px";
+    b.style.padding = "18px";
+    // 是非題的 O/X 放大
+    if (opt === "⭕" || opt === "❌") b.style.fontSize = "36px";
+    b.textContent = opt;
+    b.onclick = () => submitQuizAnswer(opt);
+    box.appendChild(b);
+  });
+}
+
 function normAns(s) {
   // 正規化答案：全形轉半形、去空格、去量詞、符號統一
   return String(s).replace(/[０-９Ａ-Ｚａ-ｚ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
     .replace(/\s+/g, "").replace(/[顆隻個條元塊片]/g, "")
-    // 比大小符號統一
+    // 比大小符號統一（全形→半形）
     .replace(/[＞]/g, ">").replace(/[＜]/g, "<").replace(/[＝]/g, "=")
-    // 是非題統一
-    .replace(/^(是|對|正確|○|✓)$/, "對").replace(/^(否|不對|錯|錯誤|×|✗)$/, "不對")
-    .toUpperCase();  // 選擇題 A/B/C 統一大小寫
+    // 是非題：⭕❌ 統一
+    .replace(/^[⭕○✓]$/, "對").replace(/^[❌×✗]$/, "不對")
+    .replace(/^(是|對|正確)$/, "對").replace(/^(否|不對|錯|錯誤)$/, "不對")
+    .toUpperCase();  // 選擇題 A/B/C/D 統一大小寫
 }
 
-async function submitQuizAnswer() {
-  const inp = document.getElementById("quiz-answer");
-  const userAns = inp.value.trim();
-  if (!userAns) return;
+async function submitQuizAnswer(selectedOpt) {
+  if (selectedOpt === undefined || selectedOpt === null) return;
+  const userAns = String(selectedOpt).trim();
   const q = quizQuestions[quizIdx];
   const fb = document.getElementById("quiz-feedback");
+  // 比對：選項文字 vs 答案
   const correct = normAns(userAns) === normAns(q.answer);
+
+  // 答完就鎖住按鈕
+  document.querySelectorAll("#quiz-options button").forEach(b => b.disabled = true);
 
   if (correct) {
     const base = 10;
@@ -1262,7 +1286,6 @@ async function submitQuizAnswer() {
     speak(["太厲害了！答對了！", "答對了！你好棒！", "哇！又答對了！"][Math.floor(Math.random() * 3)]);
     launchConfetti();
     dashStars += 1; updateDash();
-    inp.disabled = true;
     setTimeout(() => { quizIdx++; quizIdx < 5 ? nextQuizQuestion() : finishQuiz(); }, 1500);
   } else {
     quizTries++;
@@ -1276,17 +1299,16 @@ async function submitQuizAnswer() {
       hintBox.innerHTML = "💡 <b>問問獸講解：</b>" + esc(q.hint);
       hintBox.style.display = "block";
       speak(`沒關係，正確答案是${q.answer}。${q.hint}`);
-      inp.disabled = true;
       setTimeout(() => { quizIdx++; quizIdx < 5 ? nextQuizQuestion() : finishQuiz(); }, 3000);
     } else {
-      // 第一次答錯：給提示再試
+      // 第一次答錯：給提示再試，重新啟用按鈕
       fb.textContent = "🤔 再想想看！";
       fb.className = "quiz-feedback no";
       const hintBox = document.getElementById("quiz-hint");
       hintBox.innerHTML = "💡 <b>提示：</b>" + esc(q.hint);
       hintBox.style.display = "block";
       speak("再想想看！" + q.hint);
-      inp.value = ""; inp.focus();
+      document.querySelectorAll("#quiz-options button").forEach(b => b.disabled = false);
     }
   }
   updateQuizScore();
@@ -1345,10 +1367,6 @@ function resetQuiz() {
   document.querySelector(".grade-btns").style.display = "flex";
   document.getElementById("quiz-start-btn").textContent = "🚀 開始挑戰（" + quizGrade + "）";
 }
-// Enter 鍵送出答案
-document.getElementById("quiz-answer").addEventListener("keydown", e => {
-  if (e.key === "Enter") submitQuizAnswer();
-});
 
 /* ===== 獎勵系統（localStorage） ===== */
 const LS_KEYS = { points: "wws_points", rewards: "wws_rewards", todos: "wws_todos", badges: "wws_badges", daily: "wws_daily" };

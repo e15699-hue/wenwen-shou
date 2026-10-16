@@ -270,7 +270,8 @@
 <h1><span id="animal-title-icon">🐱</span> <span id="animal-title-name">問問小動物</span></h1>
 <div class="monster" id="animal-big-icon" style="cursor:grab;min-height:110px;display:flex;align-items:center;justify-content:center;position:relative;z-index:100;touch-action:none;user-select:none;-webkit-user-select:none;" title="拖我到處走！點我會開心喔！">🐱</div>
 <p class="tagline"><span id="animal-tagline">遇到不會的題目，拍照問我就對了！</span><br>沒事也可以來玩隨機出題，越玩越厲害！💪<br><span style="font-size:13px;color:#999;">👆 拖拉小動物到處走，點牠會開心喔！</span><br>
-<button onclick="openAnimalPicker()" style="margin-top:8px;padding:10px 24px;font-size:16px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#66bb6a,#43a047);border:none;border-radius:25px;cursor:pointer;box-shadow:0 3px 8px rgba(76,175,80,.4);">🔄 換小動物</button></p>
+<button onclick="openAnimalPicker()" style="margin-top:8px;padding:10px 24px;font-size:16px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#66bb6a,#43a047);border:none;border-radius:25px;cursor:pointer;box-shadow:0 3px 8px rgba(76,175,80,.4);">🔄 換小動物</button>
+<button onclick="openShop()" style="margin-top:8px;margin-left:8px;padding:10px 24px;font-size:16px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#ab47bc,#8e24aa);border:none;border-radius:25px;cursor:pointer;box-shadow:0 3px 8px rgba(171,71,188,.4);">🛍️ 裝飾品商城</button></p>
 
 <!-- 小動物選擇器 -->
 <div id="animal-picker" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center;">
@@ -1312,6 +1313,7 @@ function applyAnimal() {
   const bigEl = document.getElementById("animal-big-icon");
   if (bigEl) {
     bigEl.innerHTML = `<img src="${evo.img}" alt="${evo.name}" onerror="this.style.display='none';this.parentElement.textContent='${a.icon}';this.parentElement.style.fontSize='72px';">`;
+    renderAccessoryOverlay(bigEl);
   }
   const nameEl = document.getElementById("animal-title-name");
   if (nameEl) nameEl.textContent = "問問" + a.kind;
@@ -2252,6 +2254,113 @@ function triggerWrongSkill() {
     return { keep: true, msg: `🛡️ ${a.skillName}發動！連擊保留！` };
   }
   return { keep: false, msg: "" };
+}
+/* ===== 裝飾品商城（紙娃娃系統） ===== */
+const ACCESSORIES = [
+  { id: "crown", emoji: "👑", name: "金皇冠", price: 200, slot: "hat", top: "-8%", size: "52px" },
+  { id: "bow", emoji: "🎀", name: "粉紅蝴蝶結", price: 100, slot: "hat", top: "2%", left: "68%", size: "40px" },
+  { id: "sunglasses", emoji: "🕶️", name: "太陽眼鏡", price: 150, slot: "face", top: "32%", size: "56px" },
+  { id: "tophat", emoji: "🎩", name: "魔術帽", price: 180, slot: "hat", top: "-12%", size: "60px" },
+  { id: "halo", emoji: "✨", name: "星星光環", price: 250, slot: "hat", top: "-14%", size: "64px" },
+  { id: "scarf", emoji: "🧣", name: "紅圍巾", price: 90, slot: "neck", top: "62%", size: "48px" },
+  { id: "headphone", emoji: "🎧", name: "音樂耳機", price: 160, slot: "face", top: "18%", size: "60px" },
+  { id: "flower", emoji: "🌸", name: "櫻花髮夾", price: 130, slot: "hat", top: "6%", left: "65%", size: "36px" },
+];
+function getOwnedAccessories() {
+  try { return JSON.parse(localStorage.getItem("wws_accessories") || "[]"); }
+  catch (e) { return []; }
+}
+function ownAccessory(id) {
+  const owned = getOwnedAccessories();
+  if (!owned.includes(id)) {
+    owned.push(id);
+    localStorage.setItem("wws_accessories", JSON.stringify(owned));
+  }
+}
+function getEquipped(audioKey) {
+  try { return JSON.parse(localStorage.getItem("wws_equipped") || "{}")[audioKey] || null; }
+  catch (e) { return null; }
+}
+function setEquipped(audioKey, accId) {
+  let data = {};
+  try { data = JSON.parse(localStorage.getItem("wws_equipped") || "{}"); } catch (e) {}
+  if (accId) data[audioKey] = accId;
+  else delete data[audioKey];
+  localStorage.setItem("wws_equipped", JSON.stringify(data));
+}
+function buyAccessory(id) {
+  const acc = ACCESSORIES.find(a => a.id === id);
+  if (!acc) return;
+  const owned = getOwnedAccessories();
+  if (owned.includes(id)) { alert("已經擁有囉！"); return; }
+  if (kidPoints < acc.price) { alert(`點數不夠！需要 ${acc.price} 點，你有 ${kidPoints} 點。多玩遊戲賺點數吧！💪`); return; }
+  if (confirm(`要用 ${acc.price} 點買「${acc.emoji} ${acc.name}」嗎？`)) {
+    kidPoints -= acc.price;
+    lsSet(LS_KEYS.points, kidPoints);
+    ownAccessory(id);
+    if (typeof updatePointsDisplay === "function") updatePointsDisplay();
+    openShop();
+    alert(`🎉 買到「${acc.name}」了！點「裝備」穿上吧！`);
+  }
+}
+function toggleEquip(id) {
+  const a = getAnimal();
+  const current = getEquipped(a.audioKey);
+  setEquipped(a.audioKey, current === id ? null : id);
+  applyAnimal();
+  openShop();
+}
+function openShop() {
+  let modal = document.getElementById("shop-modal");
+  if (modal) modal.remove();
+  modal = document.createElement("div");
+  modal.id = "shop-modal";
+  modal.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:10001;display:flex;justify-content:center;align-items:center;padding:16px;";
+  const owned = getOwnedAccessories();
+  const equipped = getEquipped(getAnimal().audioKey);
+  let itemsHtml = ACCESSORIES.map(acc => {
+    const isOwned = owned.includes(acc.id);
+    const isEquipped = equipped === acc.id;
+    const btnHtml = !isOwned
+      ? `<button onclick="buyAccessory('${acc.id}')" style="padding:8px 16px;font-size:14px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#ff9800,#f57c00);border:none;border-radius:20px;cursor:pointer;">${acc.price} 點購買</button>`
+      : isEquipped
+        ? `<button onclick="toggleEquip('${acc.id}')" style="padding:8px 16px;font-size:14px;font-weight:bold;color:#fff;background:#9e9e9e;border:none;border-radius:20px;cursor:pointer;">卸下</button>`
+        : `<button onclick="toggleEquip('${acc.id}')" style="padding:8px 16px;font-size:14px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#66bb6a,#43a047);border:none;border-radius:20px;cursor:pointer;">✨ 裝備</button>`;
+    return `
+      <div style="background:#fff;border-radius:16px;padding:12px;text-align:center;border:${isEquipped ? "3px solid #4CAF50" : "2px solid #eee"};">
+        <div style="font-size:44px;">${acc.emoji}</div>
+        <div style="font-size:14px;font-weight:bold;color:#333;margin:4px 0;">${acc.name}</div>
+        <div style="margin-top:8px;">${btnHtml}</div>
+        ${isOwned ? '<div style="font-size:11px;color:#4CAF50;margin-top:4px;">✅ 已擁有</div>' : ""}
+      </div>`;
+  }).join("");
+  modal.innerHTML = `
+    <div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h2 style="margin:0;font-size:20px;">🛍️ 裝飾品商城</h2>
+        <div style="background:#fff3e0;padding:6px 14px;border-radius:15px;font-weight:bold;color:#e65100;">⭐ ${kidPoints} 點</div>
+      </div>
+      <p style="font-size:13px;color:#666;margin:0 0 12px;">幫你的小動物打扮！點數從遊戲中賺取 💪</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${itemsHtml}</div>
+      <button onclick="document.getElementById('shop-modal').remove();" style="margin-top:16px;width:100%;padding:12px;font-size:16px;font-weight:bold;color:#fff;background:#9e9e9e;border:none;border-radius:12px;cursor:pointer;">關閉</button>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
+}
+function renderAccessoryOverlay(container) {
+  const a = getAnimal();
+  const accId = getEquipped(a.audioKey);
+  const old = container.querySelector(".acc-overlay");
+  if (old) old.remove();
+  if (!accId) return;
+  const acc = ACCESSORIES.find(x => x.id === accId);
+  if (!acc) return;
+  const overlay = document.createElement("div");
+  overlay.className = "acc-overlay";
+  overlay.style.cssText = `position:absolute;top:${acc.top};left:${acc.left || "50%"};transform:translateX(-50%);font-size:${acc.size};pointer-events:none;z-index:5;filter:drop-shadow(0 2px 3px rgba(0,0,0,.2));`;
+  overlay.textContent = acc.emoji;
+  container.style.position = "relative";
+  container.appendChild(overlay);
 }
 function updateAnimalLevelDisplay() {
   const a = getAnimal();

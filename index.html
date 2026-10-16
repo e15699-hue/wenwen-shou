@@ -938,8 +938,10 @@ function speak(text) {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "zh-TW";
-    u.rate = 0.95;
-    u.pitch = 1.1;  // 稍微提高音調，比較親切
+    // 使用當前小動物的聲音特色
+    const a = getAnimal();
+    u.rate = a.rate || 0.95;
+    u.pitch = a.pitch || 1.1;
     const v = pickBestVoice();
     if (v) u.voice = v;
     speechSynthesis.speak(u);
@@ -966,7 +968,7 @@ function buildVoiceList() {
 function testVoice() {
   const sel = document.getElementById("voice-select");
   if (sel && sel.value) selectedVoiceURI = sel.value;
-  speak("哈囉！我是" + getAnimal().name + "，很高興認識你！");
+  speak(getAnimal().greeting + "很高興認識你！");
 }
 function replay() { if (lastSpoken) speak(lastSpoken); }
 
@@ -1067,12 +1069,42 @@ function toggleMic() {
 
 /* ===== 小動物系統 ===== */
 const ANIMALS = [
-  { icon: "🐱", name: "咪咪", kind: "貓咪" },
-  { icon: "🐶", name: "豆豆", kind: "小狗" },
-  { icon: "🐰", name: "跳跳", kind: "兔子" },
-  { icon: "🐼", name: "圓圓", kind: "熊貓" },
-  { icon: "🦊", name: "小乖", kind: "狐狸" },
-  { icon: "🐷", name: "胖胖", kind: "小豬" },
+  { icon: "🐱", name: "咪咪", kind: "貓咪",
+    pitch: 1.4, rate: 0.9,
+    greeting: "喵～哈囉！我是咪咪！",
+    praise: ["喵～太厲害了！", "咪咪覺得你好棒喵！", "喵嗚～答對了！"],
+    encourage: "喵～再想想看，咪咪陪你！",
+    sound: "喵～" },
+  { icon: "🐶", name: "豆豆", kind: "小狗",
+    pitch: 1.3, rate: 1.1,
+    greeting: "汪汪！我是豆豆！",
+    praise: ["汪！太棒了！", "豆豆好開心！你答對了！", "汪汪汪！厲害！"],
+    encourage: "汪！再試一次，豆豆相信你！",
+    sound: "汪！" },
+  { icon: "🐰", name: "跳跳", kind: "兔子",
+    pitch: 1.5, rate: 1.0,
+    greeting: "嗨！我是跳跳！",
+    praise: ["哇！你好聰明！", "跳跳好高興！答對了！", "太棒了！跳起來！"],
+    encourage: "沒關係，跳跳陪你慢慢想！",
+    sound: "" },
+  { icon: "🐼", name: "圓圓", kind: "熊貓",
+    pitch: 1.1, rate: 0.85,
+    greeting: "嗨嗨，我是圓圓！",
+    praise: ["圓圓覺得你超厲害！", "答對了！圓圓請你吃竹子！", "哇～好棒！"],
+    encourage: "慢慢來，圓圓等你！",
+    sound: "" },
+  { icon: "🦊", name: "小乖", kind: "狐狸",
+    pitch: 1.25, rate: 1.05,
+    greeting: "嘿！我是聰明的小乖！",
+    praise: ["小乖就知道你會答對！", "太聰明了！跟小乖一樣！", "答對了！真有你的！"],
+    encourage: "動動腦，小乖相信你想得出來！",
+    sound: "" },
+  { icon: "🐷", name: "胖胖", kind: "小豬",
+    pitch: 1.15, rate: 0.9,
+    greeting: "哼哼！我是胖胖！",
+    praise: ["哼哼！答對了！", "胖胖覺得你好厲害！", "哇！胖胖好佩服你！"],
+    encourage: "哼哼，別急，慢慢想！",
+    sound: "哼哼！" },
 ];
 let currentAnimal = null;
 function getAnimal() {
@@ -1191,7 +1223,7 @@ function retryQuestion() {
   document.getElementById("quiz-feedback").className = "quiz-feedback";
   document.querySelectorAll("#quiz-options button").forEach(b => b.disabled = false);
   const a = getAnimal();
-  speak(`${a.name}相信你！再試一次吧！`);
+  speak(a.encourage + "再試一次吧！");
 }
 
 /* ===== 假登入：身份選擇 ===== */
@@ -1443,7 +1475,8 @@ async function submitQuizAnswer(selectedOpt) {
     quizResults.push(true);
     fb.textContent = quizStreak >= 2 ? `🎉 答對了！連擊 x${mult}，+${pts} 分！` : `🎉 答對了！+${pts} 分！`;
     fb.className = "quiz-feedback ok";
-    speak(["太厲害了！答對了！", "答對了！你好棒！", "哇！又答對了！"][Math.floor(Math.random() * 3)]);
+    const ap = getAnimal().praise;
+    speak(ap[Math.floor(Math.random() * ap.length)]);
     launchConfetti();
     dashStars += 1; updateDash();
     setTimeout(() => { quizIdx++; quizIdx < 5 ? nextQuizQuestion() : finishQuiz(); }, 1500);
@@ -1472,7 +1505,7 @@ async function submitQuizAnswer(selectedOpt) {
       const hintBox = document.getElementById("quiz-hint");
       hintBox.innerHTML = "💡 <b>提示：</b>" + esc(q.hint);
       hintBox.style.display = "block";
-      speak("再想想看！" + q.hint);
+      speak(getAnimal().encourage + q.hint);
       document.querySelectorAll("#quiz-options button").forEach(b => b.disabled = false);
     }
   }

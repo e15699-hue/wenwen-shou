@@ -224,7 +224,45 @@ transition: all .2s; box-shadow: 0 4px 16px rgba(0,0,0,.08); }
 .role-switch { text-align: center; margin: 12px 0; }
 .role-switch button { background: #f0f0f0; color: #666; font-size: 14px;
 padding: 8px 20px; box-shadow: none; font-weight: normal; }
-</style></head><body><div id="login-screen"><div class="monster-big">🦖</div><h2>問問小動物教學系統</h2><p>請選擇你的身份</p><div class="role-btns"><div class="role-btn kid" onclick="loginAs('kid')"><span class="ricon">🧒</span><span class="rtext">我是小朋友</span></div><div class="role-btn parent" onclick="loginAs('parent')"><span class="ricon">👨‍👩‍👧</span><span class="rtext">我是爸爸媽媽</span></div></div><p class="hint" style="margin-top:24px;">PoC 測試版 · 不用真的登入，點一下就好</p></div><div id="kid-zone" style="display:none;"><h1><span id="animal-title-icon">🐱</span><span id="animal-title-name">問問小動物</span></h1><div class="monster" id="animal-big-icon" style="cursor:grab;min-height:110px;display:flex;align-items:center;justify-content:center;position:relative;z-index:100;touch-action:none;user-select:none;-webkit-user-select:none;" title="拖我到處走！點我會開心喔！">🐱</div><p class="tagline"><span id="animal-tagline">遇到不會的題目，拍照問我就對了！</span><br>沒事也可以來玩隨機出題，越玩越厲害！💪<br><span style="font-size:13px;color:#999;">👆 拖拉小動物到處走，點牠會開心喔！</span><br><button onclick="openAnimalPicker()" style="margin-top:8px;padding:10px 24px;font-size:16px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#66bb6a,#43a047);border:none;border-radius:25px;cursor:pointer;box-shadow:0 3px 8px rgba(76,175,80,.4);">🔄 換小動物</button><button onclick="openShop()" style="margin-top:8px;margin-left:8px;padding:10px 24px;font-size:16px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#ab47bc,#8e24aa);border:none;border-radius:25px;cursor:pointer;box-shadow:0 3px 8px rgba(171,71,188,.4);">🛍️ 裝飾品商城</button></p><div id="animal-picker" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center;"><div style="background:#fff;border-radius:20px;padding:24px;max-width:340px;text-align:center;"><h3 style="margin-top:0;">選一隻小動物陪你！</h3><div id="animal-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0;"></div><button class="btn-gray" onclick="closeAnimalPicker()">關閉</button></div></div><div id="teaching-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center;padding:16px;"><div style="background:#fff;border-radius:20px;padding:24px;max-width:400px;width:100%;text-align:center;max-height:80vh;overflow-y:auto;"><div id="teaching-animal" style="font-size:64px;margin-bottom:8px;">🐱</div><div id="teaching-step-num" style="font-size:14px;color:#999;margin-bottom:8px;">第 1 步 / 共 4 步</div><div id="teaching-text" style="font-size:19px;line-height:1.6;color:#333;margin-bottom:20px;min-height:80px;"></div><div style="display:flex;gap:10px;justify-content:center;"><button class="btn-gray" id="teaching-prev" onclick="teachingNav(-1)" style="display:none;">← 上一步</button><button class="btn-teal" id="teaching-next" onclick="teachingNav(1)" style="font-size:18px;padding:14px 24px;">下一步 →</button></div><button class="btn-gray" onclick="closeTeaching()" style="margin-top:12px;font-size:14px;">關閉</button></div></div><div class="mode-tabs"><div class="mode-tab" id="tab-ask" onclick="switchMode('ask')"><span id="tab-ask-icon">📷</span><span id="tab-ask-name">問問題</span><span class="mdesc">拍照問不會的題目</span></div><div class="mode-tab active" id="tab-quiz" onclick="switchMode('quiz')">🎲 隨機出題<span class="mdesc">選年級玩數學遊戲</span></div><div class="mode-tab" id="tab-error" onclick="switchMode('error')">📝 錯題本 <span id="error-badge" class="error-badge" style="display:none;"></span><span class="mdesc">複習答錯的題目</span></div></div><div class="points-bar"><span>🪙 我的點數</span><span class="pts"><span id="kid-points">0</span> 點</span><span style="font-size:12px;color:#7a5b00;" id="daily-points-info"></span></div><div id="animal-level"></div>
+</style></head><body><div id="login-screen"><div class="monster-big">🦖</div><h2>問問小動物教學系統</h2><p>請選擇你的身份</p><div class="role-btns"><div class="role-btn kid" onclick="loginAs('kid')"><span class="ricon">🧒</span><span class="rtext">我是小朋友</span></div><div class="role-btn parent" onclick="loginAs('parent')"><span class="ricon">👨‍👩‍👧</span><span class="rtext">我是爸爸媽媽</span></div></div><p class="hint" style="margin-top:24px;">PoC 測試版 · 不用真的登入，點一下就好</p></div><div id="kid-zone" style="display:none;">
+<style>
+#rpg-hud { position: sticky; top: 0; z-index: 500; background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 0 0 18px 18px; padding: 10px 14px; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.25); margin: 0 -8px 8px; }
+#rpg-hud .hud-top { display: flex; align-items: center; gap: 10px; }
+#rpg-hud .hud-avatar { width: 52px; height: 52px; border-radius: 50%; background: #fff; border: 3px solid #ffd54f; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+#rpg-hud .hud-avatar img { width: 44px; height: 44px; object-fit: contain; }
+#rpg-hud .hud-info { flex: 1; min-width: 0; }
+#rpg-hud .hud-name { font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 6px; }
+#rpg-hud .hud-lv { background: linear-gradient(135deg,#ff9800,#f57c00); font-size: 12px; padding: 2px 10px; border-radius: 10px; font-weight: bold; }
+#rpg-hud .hud-bar { margin-top: 5px; }
+#rpg-hud .hud-bar-label { font-size: 11px; display: flex; justify-content: space-between; margin-bottom: 2px; }
+#rpg-hud .hud-bar-bg { height: 10px; background: rgba(255,255,255,.2); border-radius: 5px; overflow: hidden; }
+#rpg-hud .hud-bar-fill { height: 100%; border-radius: 5px; transition: width .5s; }
+#rpg-hud .hud-coins { text-align: right; flex-shrink: 0; }
+#rpg-hud .hud-coins .coins { font-size: 17px; font-weight: bold; color: #ffd54f; }
+#rpg-hud .hud-coins .cointip { font-size: 10px; color: #bbb; }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+</style>
+<div id="rpg-hud">
+  <div class="hud-top">
+    <div class="hud-avatar" id="hud-avatar">🐱</div>
+    <div class="hud-info">
+      <div class="hud-name"><span id="hud-name">小動物</span><span class="hud-lv" id="hud-lv">Lv.1</span></div>
+      <div class="hud-bar">
+        <div class="hud-bar-label"><span>🍖 飽食度</span><span id="hud-sat-text">80/100</span></div>
+        <div class="hud-bar-bg"><div class="hud-bar-fill" id="hud-sat-fill" style="width:80%;background:linear-gradient(90deg,#ff9800,#ffc107);"></div></div>
+      </div>
+      <div class="hud-bar">
+        <div class="hud-bar-label"><span>⭐ 經驗值</span><span id="hud-xp-text">0/100</span></div>
+        <div class="hud-bar-bg"><div class="hud-bar-fill" id="hud-xp-fill" style="width:0%;background:linear-gradient(90deg,#42a5f5,#66bb6a);"></div></div>
+      </div>
+    </div>
+    <div class="hud-coins">
+      <div class="coins">🪙 <span id="hud-coins">0</span></div>
+      <div class="cointip">點數</div>
+    </div>
+  </div>
+</div>
+<h1><span id="animal-title-icon">🐱</span><span id="animal-title-name">問問小動物</span></h1><div class="monster" id="animal-big-icon" style="cursor:grab;min-height:110px;display:flex;align-items:center;justify-content:center;position:relative;z-index:100;touch-action:none;user-select:none;-webkit-user-select:none;" title="拖我到處走！點我會開心喔！">🐱</div><p class="tagline"><span id="animal-tagline">遇到不會的題目，拍照問我就對了！</span><br>沒事也可以來玩隨機出題，越玩越厲害！💪<br><span style="font-size:13px;color:#999;">👆 拖拉小動物到處走，點牠會開心喔！</span><br><button onclick="openAnimalPicker()" style="margin-top:8px;padding:10px 24px;font-size:16px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#66bb6a,#43a047);border:none;border-radius:25px;cursor:pointer;box-shadow:0 3px 8px rgba(76,175,80,.4);">🔄 換小動物</button><button onclick="openShop()" style="margin-top:8px;margin-left:8px;padding:10px 24px;font-size:16px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#ab47bc,#8e24aa);border:none;border-radius:25px;cursor:pointer;box-shadow:0 3px 8px rgba(171,71,188,.4);">🛍️ 裝飾品商城</button></p><div id="animal-picker" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center;"><div style="background:#fff;border-radius:20px;padding:24px;max-width:340px;text-align:center;"><h3 style="margin-top:0;">選一隻小動物陪你！</h3><div id="animal-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0;"></div><button class="btn-gray" onclick="closeAnimalPicker()">關閉</button></div></div><div id="teaching-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center;padding:16px;"><div style="background:#fff;border-radius:20px;padding:24px;max-width:400px;width:100%;text-align:center;max-height:80vh;overflow-y:auto;"><div id="teaching-animal" style="font-size:64px;margin-bottom:8px;">🐱</div><div id="teaching-step-num" style="font-size:14px;color:#999;margin-bottom:8px;">第 1 步 / 共 4 步</div><div id="teaching-text" style="font-size:19px;line-height:1.6;color:#333;margin-bottom:20px;min-height:80px;"></div><div style="display:flex;gap:10px;justify-content:center;"><button class="btn-gray" id="teaching-prev" onclick="teachingNav(-1)" style="display:none;">← 上一步</button><button class="btn-teal" id="teaching-next" onclick="teachingNav(1)" style="font-size:18px;padding:14px 24px;">下一步 →</button></div><button class="btn-gray" onclick="closeTeaching()" style="margin-top:12px;font-size:14px;">關閉</button></div></div><div class="mode-tabs"><div class="mode-tab" id="tab-ask" onclick="switchMode('ask')"><span id="tab-ask-icon">📷</span><span id="tab-ask-name">問問題</span><span class="mdesc">拍照問不會的題目</span></div><div class="mode-tab active" id="tab-quiz" onclick="switchMode('quiz')">🎲 隨機出題<span class="mdesc">選年級玩數學遊戲</span></div><div class="mode-tab" id="tab-error" onclick="switchMode('error')">📝 錯題本 <span id="error-badge" class="error-badge" style="display:none;"></span><span class="mdesc">複習答錯的題目</span></div></div><div class="points-bar"><span>🪙 我的點數</span><span class="pts"><span id="kid-points">0</span> 點</span><span style="font-size:12px;color:#7a5b00;" id="daily-points-info"></span></div><div id="animal-level"></div>
 <div id="skill-card" style="background:linear-gradient(135deg,#e8eaf6,#c5cae9);border-radius:16px;padding:12px 16px;margin:10px 0;text-align:center;border:2px solid #9fa8da;"></div>
 <div id="feed-zone" style="background:linear-gradient(135deg,#fff8e1,#ffecb3);border-radius:16px;padding:12px;margin:10px 0;text-align:center;border:2px solid #ffd54f;">
 <div style="font-size:15px;font-weight:bold;color:#e65100;margin-bottom:8px;">🍽️ 餵食時間 <span id="feed-count" style="font-size:12px;color:#999;"></span></div>
@@ -868,6 +906,7 @@ renderAccessoryOverlay(bigEl);
 }
 if (typeof renderSkillCard === "function") renderSkillCard();
 if (typeof renderFeedZone === "function") renderFeedZone();
+  if (typeof updateRpgHud === "function") updateRpgHud();
 const nameEl = document.getElementById("animal-title-name");
 if (nameEl) nameEl.textContent = "問問" + a.kind;
 const tagEl = document.getElementById("animal-tagline");
@@ -1310,7 +1349,8 @@ quizIdx < 5 ? nextQuizQuestion() : finishQuiz();
 });
 launchConfetti();
 dashStars += 1; updateDash();
-addAnimalXP(getAnimal().audioKey, 10);
+const _satQ = typeof getSatiety === "function" ? getSatiety(getAnimal().audioKey) : 100;
+addAnimalXP(getAnimal().audioKey, _satQ < 20 ? 5 : 10);
 } else {
 quizTries++;
 const skill = triggerWrongSkill();
@@ -2213,6 +2253,7 @@ msg = `${a.name}吃了${food.emoji}${food.name}！${mood}\n獲得 ${xpGain} 經�
 playAnimalSound("praise1", a.praise[0]);
 }
 addAnimalXP(a.audioKey, xpGain);
+  if (!food.disliked) addSatiety(a.audioKey, 15 + Math.floor(food.xp / 2));
 const el = document.getElementById("animal-big-icon");
 if (el) {
 const img = el.querySelector("img") || el;
@@ -2285,4 +2326,80 @@ const tag = liked ? '<div style="font-size:11px;color:#2e7d32;font-weight:bold;"
 document.body.appendChild(modal);
 modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
 }
+
+/* ===== RPG 飽食度系統 ===== */
+const MAX_SAT = 100;
+function getSatiety(audioKey) {
+  try {
+    const d = JSON.parse(localStorage.getItem("wws_satiety") || "{}");
+    const now = Date.now();
+    let s = d[audioKey];
+    if (!s) return 80;
+    // 隨時間下降：每小時 -8
+    const hoursPassed = (now - s.ts) / 3600000;
+    const decay = Math.floor(hoursPassed * 8);
+    return Math.max(0, s.val - decay);
+  } catch (e) { return 80; }
+}
+function setSatiety(audioKey, val) {
+  let d = {};
+  try { d = JSON.parse(localStorage.getItem("wws_satiety") || "{}"); } catch (e) {}
+  d[audioKey] = { val: Math.max(0, Math.min(MAX_SAT, val)), ts: Date.now() };
+  localStorage.setItem("wws_satiety", JSON.stringify(d));
+  updateRpgHud();
+}
+function addSatiety(audioKey, n) {
+  setSatiety(audioKey, getSatiety(audioKey) + n);
+}
+/* 更新 RPG HUD */
+function updateRpgHud() {
+  const a = getAnimal();
+  if (!a) return;
+  const evo = getEvolutionInfo(a.audioKey);
+  const level = getAnimalLevel(a.audioKey);
+  const xp = getAnimalXP(a.audioKey);
+  const xpProg = xp % XP_PER_LEVEL;
+  const sat = getSatiety(a.audioKey);
+  // 頭像
+  const av = document.getElementById("hud-avatar");
+  if (av) av.innerHTML = `<img src="${evo.img}" alt="${evo.name}" onerror="this.outerHTML='${a.icon}'">`;
+  // 名字等級
+  const nm = document.getElementById("hud-name");
+  if (nm) nm.textContent = evo.name;
+  const lv = document.getElementById("hud-lv");
+  if (lv) lv.textContent = "Lv." + level;
+  // 飽食度
+  const st = document.getElementById("hud-sat-text");
+  if (st) st.textContent = sat + "/" + MAX_SAT;
+  const sf = document.getElementById("hud-sat-fill");
+  if (sf) {
+    sf.style.width = sat + "%";
+    sf.style.background = sat < 25 ? "linear-gradient(90deg,#e53935,#ef5350)" : sat < 50 ? "linear-gradient(90deg,#fb8c00,#ffb74d)" : "linear-gradient(90deg,#ff9800,#ffc107)";
+  }
+  // 經驗值
+  const xt = document.getElementById("hud-xp-text");
+  if (xt) xt.textContent = xpProg + "/" + XP_PER_LEVEL;
+  const xf = document.getElementById("hud-xp-fill");
+  if (xf) xf.style.width = (xpProg / XP_PER_LEVEL * 100) + "%";
+  // 點數
+  const cn = document.getElementById("hud-coins");
+  if (cn) cn.textContent = kidPoints.toLocaleString();
+  // 低飽食警告
+  if (sat < 20) {
+    const warn = document.getElementById("hud-sat-warn");
+    if (!warn) {
+      const w = document.createElement("div");
+      w.id = "hud-sat-warn";
+      w.style.cssText = "font-size:11px;color:#ff8a80;margin-top:4px;animation:blink 1s infinite;";
+      w.textContent = "⚠️ 肚子餓了！快餵食，不然經驗值減半！";
+      document.querySelector("#rpg-hud .hud-info").appendChild(w);
+    }
+  } else {
+    const warn = document.getElementById("hud-sat-warn");
+    if (warn) warn.remove();
+  }
+}
+// 餵食時也加飽食度
+const _origFeed = window.feedAnimal;
+
 </script></body></html>

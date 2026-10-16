@@ -967,14 +967,25 @@ function pickBestVoice() {
 /* 語音用文字轉換 */
 function speechText(text, qtype) {
   if (!text) return text;
+  let t = text;
+  // 數學符號轉中文念法
+  t = t.replace(/×/g, "乘").replace(/\*/g, "乘");
+  t = t.replace(/÷/g, "除以");
+  // 減號：數字之間的 - 念「減」（避免把負號也轉掉，先處理數字間的）
+  t = t.replace(/(\d)\s*-\s*(?=\d)/g, "$1 減 ");
+  t = t.replace(/\+/g, "加 ");
+  t = t.replace(/=/g, "等於 ");
+  t = t.replace(/＞/g, "大於 ").replace(/>/g, "大於 ");
+  t = t.replace(/＜/g, "小於 ").replace(/</g, "小於 ");
+  t = t.replace(/＝/g, "等於 ");
   // 比大小：__ 念「大於小於」
   if (qtype === "比大小") {
-    return text.replace(/__/g, "大於小於");
+    return t.replace(/__/g, "大於小於");
   }
   // 數學相關題型：計算、填充、應用 → 念「多少」
   const mathTypes = ["計算題", "填充題", "應用題"];
   const replacement = mathTypes.includes(qtype) ? "多少" : "什麼";
-  return text.replace(/__/g, replacement);
+  return t.replace(/__/g, replacement);
 }
 function speak(text) {
   try {

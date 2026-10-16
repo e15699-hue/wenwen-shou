@@ -268,8 +268,8 @@
 <!-- ===== 學童區 ===== -->
 <div id="kid-zone" style="display:none;">
 <h1><span id="animal-title-icon">🐱</span> <span id="animal-title-name">問問小動物</span></h1>
-<div class="monster" id="animal-big-icon" style="cursor:pointer;min-height:110px;display:flex;align-items:center;justify-content:center;" onclick="openAnimalPicker()" title="點我換小動物！">🐱</div>
-<p class="tagline"><span id="animal-tagline">遇到不會的題目，拍照問我就對了！</span><br>沒事也可以來玩隨機出題，越玩越厲害！💪<br><span style="font-size:13px;color:#999;">👆 點上面的小動物可以換一隻喔！</span></p>
+<div class="monster" id="animal-big-icon" style="cursor:grab;min-height:110px;display:flex;align-items:center;justify-content:center;position:relative;z-index:100;touch-action:none;user-select:none;-webkit-user-select:none;" title="拖我到處走！點我會開心喔！">🐱</div>
+<p class="tagline"><span id="animal-tagline">遇到不會的題目，拍照問我就對了！</span><br>沒事也可以來玩隨機出題，越玩越厲害！💪<br><span style="font-size:13px;color:#999;">👆 拖拉小動物到處走，點牠會開心喔！ <a href="javascript:openAnimalPicker()" style="color:#4CAF50;">換小動物</a></span></p>
 
 <!-- 小動物選擇器 -->
 <div id="animal-picker" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center;">
@@ -1304,6 +1304,100 @@ function applyAnimal() {
   const tabName = document.getElementById("tab-ask-name");
   if (tabName) tabName.textContent = evo.name;
 }
+/* ===== 小動物拖拉互動 ===== */
+(function initAnimalDrag() {
+  let dragging = false, moved = 0, startX = 0, startY = 0, baseX = 0, baseY = 0;
+  const el = () => document.getElementById("animal-big-icon");
+  // 讀取儲存的位置
+  function restorePos() {
+    try {
+      const p = JSON.parse(localStorage.getItem("wws_animal_pos") || "null");
+      const e = el();
+      if (p && e) { e.style.transform = `translate(${p.x}px, ${p.y}px)`; }
+    } catch (e) {}
+  }
+  function getPos() {
+    const e = el();
+    const m = /translate\((-?\d+)px,\s*(-?\d+)px\)/.exec(e.style.transform || "");
+    return m ? { x: +m[1], y: +m[2] } : { x: 0, y: 0 };
+  }
+  function onStart(cx, cy) {
+    dragging = true; moved = 0;
+    startX = cx; startY = cy;
+    const p = getPos(); baseX = p.x; baseY = p.y;
+    el().style.cursor = "grabbing";
+    el().style.transition = "none";
+  }
+  function onMove(cx, cy) {
+    if (!dragging) return;
+    const dx = cx - startX, dy = cy - startY;
+    moved = Math.max(moved, Math.abs(dx) + Math.abs(dy));
+    el().style.transform = `translate(${baseX + dx}px, ${baseY + dy}px)`;
+  }
+  function onEnd() {
+    if (!dragging) return;
+    dragging = false;
+    el().style.cursor = "grab";
+    el().style.transition = "transform .2s";
+    const p = getPos();
+    try { localStorage.setItem("wws_animal_pos", JSON.stringify(p)); } catch (e) {}
+    // 點一下（沒拖動）= 互動：開心跳一下 + 叫聲
+    if (moved < 10) petAnimal();
+  }
+  function petAnimal() {
+    const e = el();
+    const img = e.querySelector("img");
+    const target = img || e;
+    target.style.transition = "transform .15s";
+    target.style.transform = "scale(1.25) rotate(-5deg)";
+    setTimeout(() => { target.style.transform = "scale(1) rotate(0deg)"; }, 180);
+    setTimeout(() => { target.style.transform = "scale(1.15)"; }, 360);
+    setTimeout(() => { target.style.transform = "scale(1)"; target.style.transition = ""; }, 540);
+    // 叫聲
+    try {
+      const a = getAnimal();
+      if (a.sound) speak(a.sound);
+      else speak(a.name + "好開心！");
+    } catch (err) {}
+  }
+  document.addEventListener("DOMContentLoaded", () => {
+    const e = el();
+    if (!e) return;
+    restorePos();
+    // 滑鼠
+    e.addEventListener("mousedown", ev => { onStart(ev.clientX, ev.clientY); ev.preventDefault(); });
+    document.addEventListener("mousemove", ev => onMove(ev.clientX, ev.clientY));
+    document.addEventListener("mouseup", onEnd);
+    // 觸控
+    e.addEventListener("touchstart", ev => {
+      const t = ev.touches[0];
+      onStart(t.clientX, t.clientY);
+      ev.preventDefault();
+    }, { passive: false });
+    document.addEventListener("touchmove", ev => {
+      const t = ev.touches[0];
+      onMove(t.clientX, t.clientY);
+    }, { passive: true });
+    document.addEventListener("touchend", onEnd);
+  });
+  // applyAnimal 重繪後也要恢復位置
+  const _apply = window.applyAnimal;
+  window.applyAnimal = function() {
+    _apply();
+    restorePos();
+    // 重新綁定（innerHTML 被重寫）
+    const e = el();
+    if (e && !e.dataset.dragBound) {
+      e.dataset.dragBound = "1";
+      e.addEventListener("mousedown", ev => { onStart(ev.clientX, ev.clientY); ev.preventDefault(); });
+      e.addEventListener("touchstart", ev => {
+        const t = ev.touches[0];
+        onStart(t.clientX, t.clientY);
+        ev.preventDefault();
+      }, { passive: false });
+    }
+  };
+})();
 function openAnimalPicker() {
   const grid = document.getElementById("animal-grid");
   grid.innerHTML = "";

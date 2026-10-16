@@ -1124,9 +1124,26 @@ function closeAnimalPicker() {
 /* ===== 教學引導系統 ===== */
 let teachingSteps = [];
 let teachingIdx = 0;
-function startTeaching() {
+let teachingTemplates = null;
+async function loadTeachingTemplates() {
+  if (teachingTemplates) return teachingTemplates;
+  try {
+    const res = await fetch("data/teaching_templates.json");
+    teachingTemplates = await res.json();
+    return teachingTemplates;
+  } catch (e) {
+    return null;
+  }
+}
+async function startTeaching() {
   const q = quizQuestions[quizIdx];
-  teachingSteps = q.teaching || [q.hint || "再想想看！"];
+  // 優先用題目自帶的教學，否則用共用模板，最後 fallback 到 hint
+  if (q.teaching && q.teaching.length) {
+    teachingSteps = q.teaching;
+  } else {
+    const templates = await loadTeachingTemplates();
+    teachingSteps = (templates && templates[q.type]) || [q.hint || "再想想看！"];
+  }
   teachingIdx = 0;
   const a = getAnimal();
   document.getElementById("teaching-animal").textContent = a.icon;

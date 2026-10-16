@@ -270,11 +270,15 @@ const SpriteAnim = {
   start(animalKey) {
     const bigEl = document.getElementById("animal-big-icon");
     if (!bigEl) return;
-    const sprite = this.sprites[animalKey];
+    const stage = (typeof getEvolutionStage === "function") ? getEvolutionStage(animalKey) : 0;
+    let sprite = this.sprites[animalKey];
     if (!sprite) return;
-    if ((this.active || this.loading) && this.animalKey === animalKey) return;
+    if (stage === 1) sprite = animalKey + "_stage2_walk";
+    else if (stage >= 2) sprite = animalKey + "_stage3_walk";
+    if ((this.active || this.loading) && this.animalKey === animalKey && this.spriteStage === stage) return;
     this.stop();
     this.animalKey = animalKey;
+    this.spriteStage = stage;
     this.loading = true;
     const url = "images/walk/" + sprite + ".webp";
     const test = new Image();
@@ -292,6 +296,11 @@ const SpriteAnim = {
       d.style.backgroundImage = 'url("' + url + '")';
       d.style.backgroundSize = "400% 100%";
       d.style.backgroundPosition = "0 0";
+      try {
+        if (typeof isShiny === "function" && isShiny(animalKey, stage)) {
+          d.style.filter = "hue-rotate(130deg) saturate(1.6) drop-shadow(0 0 10px rgba(255,215,0,.85))";
+        }
+      } catch (e) {}
       el.insertBefore(d, el.firstChild);
       this.spriteEl = d;
       this.current = 0;
@@ -320,7 +329,7 @@ const SpriteAnim = {
       const staticImg = bigEl.querySelector(":scope > img");
       if (staticImg) staticImg.style.display = "";
     }
-    this.active = false; this.animalKey = null; this.current = 0;
+    this.active = false; this.animalKey = null; this.spriteStage = 0; this.current = 0;
   }
 };
 
@@ -918,12 +927,22 @@ touchLastSeen();
 if(!last)return; /* 首次開啟不發 */
 var hours=Math.min(8,Math.floor((Date.now()-last)/3600000));
 if(hours<1)return;
-var pts=hours*10,xp=hours*5;
+/* 魔王加成：每擊敗一種魔王，每小時收益 +50%（AFK Arena 式掛鉤） */
+var bossCount=0;
+try{
+var wins=getBossWins();
+Object.keys(wins).forEach(function(k){ if(wins[k]>0) bossCount++; });
+}catch(e){}
+var mult=1+bossCount*0.5;
+var pts=Math.round(hours*10*mult),xp=Math.round(hours*5*mult);
 grantPoints(pts);
 var a=(typeof getAnimal==="function")?getAnimal():null;
 if(a&&typeof addAnimalXP==="function")addAnimalXP(a.audioKey,xp);
 setTimeout(function(){
-alert("🎁 離線獎勵！\n小動物在你離開的 "+hours+" 小時裡乖乖長大～\n獲得 "+pts+" 點、"+xp+" 經驗！");
+var bonusTxt=bossCount>0
+?("\n👹 魔王加成 ×"+mult.toFixed(1)+"（已擊敗 "+bossCount+" 種魔王）")
+:("\n💡 打敗魔王可以提高離線獎勵喔！");
+alert("🎁 離線獎勵！\n小動物在你離開的 "+hours+" 小時裡乖乖長大～\n獲得 "+pts+" 點、"+xp+" 經驗！"+bonusTxt);
 },1500);
 }
 
@@ -1079,11 +1098,49 @@ function startBossBattle(){
     boss: boss, grade: bossSelGrade,
     bossHp: boss.hp, maxBossHp: boss.hp,
     playerHp: 100, maxPlayerHp: 100,
-    askedIds: [], over: false, q: null
+    askedIds: [], over: false, q: null,
+    timeLeft: 60, timer: null
   };
   quizStreak = 0;
   renderBossArena();
   nextBossQuestion();
+  bossBattle.timer = setInterval(bossTick, 1000);
+}
+
+function bossStopTimer(){
+  if(bossBattle && bossBattle.timer){ clearInterval(bossBattle.timer); bossBattle.timer = null; }
+}
+
+function bossTick(){
+  if(!bossBattle || bossBattle.over) return;
+  bossBattle.timeLeft--;
+  const t = document.getElementById("boss-timer");
+  if(t){
+    t.textContent = "⏱️ " + Math.max(0, bossBattle.timeLeft);
+    if(bossBattle.timeLeft <= 10) t.classList.add("timer-danger");
+  }
+  if(bossBattle.timeLeft <= 0) bossTimeout();
+}
+
+function bossTimeout(){
+  if(!bossBattle || bossBattle.over) return;
+  bossStopTimer();
+  bossBattle.over = true;
+  const b = bossBattle.boss;
+  const arena = document.getElementById("boss-arena-modal");
+  if(arena) arena.remove();
+  const m = document.createElement("div");
+  m.id = "boss-result-modal";
+  m.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:10003;display:flex;justify-content:center;align-items:center;padding:16px;";
+  m.innerHTML = '<div style="background:#fff;border-radius:24px;padding:28px;max-width:340px;width:100%;text-align:center;">'
+    + '<div style="font-size:56px;">💨</div>'
+    + '<h2 style="margin:8px 0;color:#666;">魔王逃跑了！</h2>'
+    + '<p style="font-size:15px;color:#666;">時間到！'+b.icon+' '+b.name+'趁機溜走了…<br>再挑戰一次吧！</p>'
+    + '<button onclick="document.getElementById(\'boss-result-modal\').remove();startBossBattle();" style="margin-top:14px;width:100%;padding:14px;font-size:16px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#ef5350,#c62828);border:none;border-radius:16px;cursor:pointer;">⚔️ 再打一次</button>'
+    + '<button onclick="document.getElementById(\'boss-result-modal\').remove();openBossBattle();" style="margin-top:8px;width:100%;padding:10px;background:#78909c;color:#fff;border:none;border-radius:12px;font-size:14px;cursor:pointer;">換個魔王 / 難度</button>'
+    + '<button onclick="document.getElementById(\'boss-result-modal\').remove();" style="margin-top:8px;width:100%;padding:10px;background:#e0e0e0;color:#666;border:none;border-radius:12px;font-size:14px;cursor:pointer;">回農場</button>'
+    + '</div>';
+  document.body.appendChild(m);
 }
 
 function renderBossArena(){
@@ -1097,15 +1154,24 @@ function renderBossArena(){
   m.innerHTML = '<style>'
     + '@keyframes bossShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-14px) rotate(-4deg)}40%{transform:translateX(12px) rotate(3deg)}60%{transform:translateX(-8px)}80%{transform:translateX(6px)}}'
     + '@keyframes playerShake{0%,100%{transform:translateX(0)}25%{transform:translateX(10px)}50%{transform:translateX(-10px)}75%{transform:translateX(6px)}}'
-    + '@keyframes dmgFloat{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-70px) scale(1.3)}}'
+    + '@keyframes dmgFloat{0%{opacity:0;transform:translateY(12px) scale(.4)}15%{opacity:1;transform:translateY(0) scale(1.35)}35%{transform:translateY(-10px) scale(1.1)}100%{opacity:0;transform:translateY(-85px) scale(1.25)}}'
     + '@keyframes bossIdle{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}'
     + '.boss-shake{animation:bossShake .45s ease;}'
     + '.player-shake{animation:playerShake .45s ease;}'
     + '.dmg-num{position:absolute;font-weight:bold;pointer-events:none;animation:dmgFloat 1.1s ease forwards;z-index:50;text-shadow:0 2px 4px rgba(0,0,0,.5);}'
+    + '@keyframes critShake{0%,100%{transform:translate(0,0)}10%{transform:translate(-12px,6px)}20%{transform:translate(10px,-8px)}30%{transform:translate(-8px,-6px)}40%{transform:translate(12px,8px)}50%{transform:translate(-10px,4px)}60%{transform:translate(8px,-4px)}70%{transform:translate(-6px,6px)}80%{transform:translate(6px,-6px)}90%{transform:translate(-4px,2px)}}'
+    + '@keyframes hpFlash{0%{filter:brightness(2.2)}100%{filter:brightness(1)}}'
+    + '@keyframes timerDanger{0%,100%{transform:scale(1)}50%{transform:scale(1.3);color:#ff5252}}'
+    + '@keyframes critBanner{0%{transform:scale(.3) rotate(-8deg);opacity:0}40%{transform:scale(1.25) rotate(3deg);opacity:1}70%{transform:scale(1) rotate(0)}100%{transform:scale(1.1);opacity:0}}'
+    + '.crit-shake{animation:critShake .5s ease;}'
+    + '.hp-flash{animation:hpFlash .4s ease;}'
+    + '.timer-danger{display:inline-block;animation:timerDanger .8s ease infinite;}'
+    + '.crit-banner{position:absolute;top:36%;left:0;right:0;text-align:center;font-size:54px;font-weight:bold;color:#ffeb3b;text-shadow:0 0 18px #ff9800,0 4px 0 #b71c1c;pointer-events:none;z-index:60;animation:critBanner 1.2s ease forwards;}'
+    + '.dmg-crit{font-size:56px!important;color:#ffeb3b!important;text-shadow:0 0 16px #ff9800,0 3px 0 #b71c1c;}'
     + '</style>'
     + '<div id="boss-arena-inner" style="width:100%;max-width:480px;position:relative;">'
     + '<div style="background:rgba(0,0,0,.45);border:2px solid #c62828;border-radius:16px;padding:12px;margin-bottom:10px;">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;color:#fff;"><span style="font-size:17px;font-weight:bold;">'+b.icon+' '+b.name+'</span><span id="boss-hp-text" style="font-size:14px;font-weight:bold;">'+b.hp+'/'+b.hp+'</span></div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;color:#fff;"><span style="font-size:17px;font-weight:bold;">'+b.icon+' '+b.name+'</span><span id="boss-timer" style="font-size:15px;font-weight:bold;background:rgba(0,0,0,.55);padding:2px 12px;border-radius:12px;">⏱️ 60</span><span id="boss-hp-text" style="font-size:14px;font-weight:bold;">'+b.hp+'/'+b.hp+'</span></div>'
     + '<div style="height:16px;background:#330000;border-radius:8px;margin-top:6px;overflow:hidden;border:1px solid #7f0000;"><div id="boss-hp-fill" style="height:100%;width:100%;background:linear-gradient(90deg,#ef5350,#ff7961);border-radius:8px;transition:width .4s;"></div></div>'
     + '</div>'
     + '<div id="boss-sprite-wrap" style="text-align:center;position:relative;min-height:150px;animation:bossIdle 2.5s ease-in-out infinite;">'
@@ -1138,15 +1204,20 @@ function updateBossBars(){
   if(pf) pf.style.width = Math.max(0, bossBattle.playerHp / bossBattle.maxPlayerHp * 100) + "%";
   if(pt) pt.textContent = Math.max(0, bossBattle.playerHp) + "/" + bossBattle.maxPlayerHp;
   const st = document.getElementById("boss-streak");
-  if(st) st.textContent = "x" + quizStreak;
+  if(st){
+    st.textContent = "x" + quizStreak;
+    st.style.transition = "font-size .2s";
+    st.style.fontSize = Math.min(14 + quizStreak * 2, 34) + "px";
+    st.style.color = quizStreak >= 5 ? "#ffeb3b" : "#fff";
+  }
 }
 
-function bossDamageNum(text, color, isPlayer){
+function bossDamageNum(text, color, isPlayer, big){
   const layer = document.getElementById("boss-dmg-layer");
   if(!layer) return;
   const d = document.createElement("div");
-  d.className = "dmg-num";
-  d.style.cssText += "left:"+(20+Math.random()*60)+"%;top:30%;font-size:"+(isPlayer?22:34)+"px;color:"+color+";";
+  d.className = "dmg-num" + (big ? " dmg-crit" : "");
+  d.style.cssText += "left:"+(20+Math.random()*60)+"%;top:30%;font-size:"+(isPlayer?22:(big?48:40))+"px;color:"+color+";";
   d.textContent = text;
   layer.appendChild(d);
   setTimeout(function(){ d.remove(); }, 1150);
@@ -1211,9 +1282,23 @@ function submitBossAnswer(opt, btn){
     }catch(e){}
     bossBattle.bossHp -= dmg;
     updateBossBars();
+    const bf2 = document.getElementById("boss-hp-fill");
+    if(bf2){ bf2.classList.remove("hp-flash"); void bf2.offsetWidth; bf2.classList.add("hp-flash"); }
     const sp = document.getElementById("boss-sprite");
     if(sp){ sp.classList.remove("boss-shake"); void sp.offsetWidth; sp.classList.add("boss-shake"); }
-    bossDamageNum((isCrit?"💥 ":"")+"-"+dmg, isCrit?"#ffeb3b":"#ffffff", false);
+    bossDamageNum((isCrit?"💥 ":"")+"-"+dmg, isCrit?"#ffeb3b":"#ffffff", false, isCrit);
+    if(isCrit){
+      const arena = document.getElementById("boss-arena-modal");
+      if(arena){ arena.classList.remove("crit-shake"); void arena.offsetWidth; arena.classList.add("crit-shake"); }
+      const layer = document.getElementById("boss-dmg-layer");
+      if(layer){
+        const cb = document.createElement("div");
+        cb.className = "crit-banner";
+        cb.textContent = "暴擊！";
+        layer.appendChild(cb);
+        setTimeout(function(){ cb.remove(); }, 1250);
+      }
+    }
     if(qf){ qf.style.color = "#2e7d32"; qf.textContent = "⚔️ 命中！"+(isCrit?" 暴擊！":"")+skillMsg; }
     if(btn){ btn.style.background = "linear-gradient(135deg,#66bb6a,#43a047)"; }
     try{ if(typeof playAnimalSound==="function") playAnimalSound("praise"+(1+Math.floor(Math.random()*3)), a.praise[Math.floor(Math.random()*a.praise.length)]); }catch(e){}
@@ -1252,6 +1337,7 @@ function submitBossAnswer(opt, btn){
 
 function bossVictory(){
   if(!bossBattle) return;
+  bossStopTimer();
   bossBattle.over = true;
   const b = bossBattle.boss;
   const wins = getBossWins();
@@ -1296,6 +1382,7 @@ function bossVictory(){
 
 function bossDefeat(){
   if(!bossBattle) return;
+  bossStopTimer();
   bossBattle.over = true;
   const b = bossBattle.boss;
   const arena = document.getElementById("boss-arena-modal");
@@ -1317,6 +1404,7 @@ function bossDefeat(){
 function bossEscape(){
   if(!bossBattle) return;
   if(confirm("確定要逃跑嗎？魔王血量會重置喔！")){
+    bossStopTimer();
     bossBattle.over = true;
     const arena = document.getElementById("boss-arena-modal");
     if(arena) arena.remove();
@@ -1338,3 +1426,515 @@ setTimeout(function(){
     }
   }catch(e){}
 }, 1800);
+
+/* ===== 可列印成就證書（Khan Academy 式） ===== */
+function generateCertificate(achvId){
+var ac=null;
+try{
+ACHIEVEMENTS.forEach(function(a){ if(a.id===achvId) ac=a; });
+}catch(e){ return null; }
+if(!ac) return null;
+var canvas=document.createElement("canvas");
+canvas.width=800; canvas.height=600;
+var ctx=canvas.getContext("2d");
+/* 粉彩底色 */
+var bg=ctx.createLinearGradient(0,0,0,600);
+bg.addColorStop(0,"#fffaf3"); bg.addColorStop(0.55,"#fff3e2"); bg.addColorStop(1,"#ffe9d2");
+ctx.fillStyle=bg; ctx.fillRect(0,0,800,600);
+/* 底紋圓點 */
+ctx.fillStyle="rgba(212,175,55,0.08)";
+for(var ry=90; ry<560; ry+=72){
+for(var rx=90; rx<740; rx+=72){
+ctx.beginPath(); ctx.arc(rx,ry,10,0,Math.PI*2); ctx.fill();
+}
+}
+/* 金色雙層邊框 */
+ctx.strokeStyle="#d4af37"; ctx.lineWidth=14; ctx.strokeRect(26,26,748,548);
+ctx.strokeStyle="#f7e08b"; ctx.lineWidth=4;  ctx.strokeRect(50,50,700,500);
+/* 四角星星裝飾 */
+ctx.fillStyle="#d4af37"; ctx.font="34px serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+var corners=[[84,84],[716,84],[84,516],[716,516]];
+corners.forEach(function(p){ ctx.fillText("✦",p[0],p[1]); });
+/* 頂部小字 */
+ctx.fillStyle="#b8860b"; ctx.font="bold 26px sans-serif";
+ctx.fillText("問 問 小 動 物", 400, 108);
+/* 主標題 */
+ctx.fillStyle="#8d6e00"; ctx.font="bold 62px sans-serif";
+ctx.fillText("🏆 成 就 證 書 🏆", 400, 168);
+/* 成就圖示 */
+ctx.font="104px serif";
+ctx.fillText(ac.icon, 400, 278);
+/* 成就名稱 */
+ctx.fillStyle="#3e2723"; ctx.font="bold 52px sans-serif";
+ctx.fillText(ac.name, 400, 366);
+/* 成就描述 */
+ctx.fillStyle="#6d4c41"; ctx.font="30px sans-serif";
+ctx.fillText(ac.desc, 400, 414);
+/* 小動物名 */
+var petName="小動物";
+try{
+var an=(typeof getAnimal==="function")?getAnimal():null;
+if(an && typeof getEvolutionInfo==="function") petName=getEvolutionInfo(an.audioKey).name;
+}catch(e){}
+ctx.fillStyle="#e65100"; ctx.font="bold 30px sans-serif";
+ctx.fillText("與 "+petName+" 一起獲得 🎉", 400, 462);
+/* 日期 */
+var d=new Date();
+var ds=d.getFullYear()+" 年 "+(d.getMonth()+1)+" 月 "+d.getDate()+" 日";
+ctx.fillStyle="#9e9e9e"; ctx.font="24px sans-serif";
+ctx.fillText(ds+" 頒發", 400, 512);
+return canvas;
+}
+
+function downloadCertificate(achvId){
+var canvas=generateCertificate(achvId);
+if(!canvas) return;
+var ac=null;
+try{ ACHIEVEMENTS.forEach(function(a){ if(a.id===achvId) ac=a; }); }catch(e){}
+var link=document.createElement("a");
+link.download="成就證書_"+(ac?ac.name:achvId)+".png";
+link.href=canvas.toDataURL("image/png");
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
+}
+
+function showCertificatePreview(achvId){
+var canvas=generateCertificate(achvId);
+if(!canvas) return;
+var old=document.getElementById("cert-modal");
+if(old) old.remove();
+var m=document.createElement("div");
+m.id="cert-modal";
+m.style.cssText="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:10005;display:flex;justify-content:center;align-items:center;padding:16px;";
+var box=document.createElement("div");
+box.style.cssText="background:#fff;border-radius:24px;padding:20px;max-width:440px;width:100%;text-align:center;max-height:92vh;overflow-y:auto;";
+var title=document.createElement("h2");
+title.style.cssText="margin:0 0 12px;font-size:20px;";
+title.textContent="🏆 獲得成就證書！";
+canvas.style.cssText="max-width:100%;height:auto;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.15);";
+var tip=document.createElement("p");
+tip.style.cssText="font-size:13px;color:#888;margin:10px 0 0;";
+tip.textContent="可以下載列印出來，貼在冰箱上給阿公阿嬤看！";
+var dl=document.createElement("button");
+dl.style.cssText="margin-top:12px;width:100%;padding:14px;font-size:16px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#66bb6a,#43a047);border:none;border-radius:16px;cursor:pointer;";
+dl.textContent="💾 下載證書";
+dl.onclick=function(){ downloadCertificate(achvId); };
+var again=document.createElement("button");
+again.style.cssText="margin-top:8px;width:100%;padding:10px;background:#e0e0e0;color:#666;border:none;border-radius:12px;font-size:14px;cursor:pointer;";
+again.textContent="關閉";
+again.onclick=function(){ m.remove(); };
+box.appendChild(title);
+box.appendChild(canvas);
+box.appendChild(tip);
+box.appendChild(dl);
+box.appendChild(again);
+m.appendChild(box);
+document.body.appendChild(m);
+m.addEventListener("click",function(e){ if(e.target===m) m.remove(); });
+}
+
+/* 成就證書掛鉤：checkAchv 解鎖新成就時自動彈出證書預覽 */
+(function hookAchvCert(){
+if(typeof checkAchv==="function" && !checkAchv._certHooked){
+var _orig=checkAchv;
+var wrapped=function(type,value){
+var before=[];
+try{ before=getUnlockedAchv().slice(); }catch(e){}
+var r=_orig.apply(this,arguments);
+try{
+var after=getUnlockedAchv();
+after.forEach(function(id,idx){
+if(before.indexOf(id)===-1){
+setTimeout(function(){ showCertificatePreview(id); }, 1400+idx*1800);
+}
+});
+}catch(e){}
+return r;
+};
+wrapped._certHooked=true;
+checkAchv=wrapped;
+}
+})();
+
+/* ===== 自適應難度系統 (Adaptive Difficulty, 參考 Prodigy Math) ===== */
+const ADAPTIVE_KEY = "wws_adaptive";
+const ADAPTIVE_MIN = 0.5, ADAPTIVE_MAX = 3.5;
+const ADAPTIVE_GRADES = ["低年級", "中年級", "高年級"];
+const ADAPTIVE_GRADE_BASE = {"低年級": 1.0, "中年級": 2.0, "高年級": 3.0};
+
+function getAdaptiveData() {
+  try { return JSON.parse(localStorage.getItem(ADAPTIVE_KEY) || "{}"); }
+  catch(e) { return {}; }
+}
+function saveAdaptiveData(d) {
+  try { localStorage.setItem(ADAPTIVE_KEY, JSON.stringify(d)); } catch(e) {}
+}
+function getAdaptiveLevel(audioKey) {
+  const d = getAdaptiveData();
+  const v = d[audioKey];
+  if (v && typeof v.level === "number") return Math.min(ADAPTIVE_MAX, Math.max(ADAPTIVE_MIN, v.level));
+  return 1.5;
+}
+function setAdaptiveLevel(audioKey, level) {
+  const d = getAdaptiveData();
+  const cur = d[audioKey] || {};
+  cur.level = Math.min(ADAPTIVE_MAX, Math.max(ADAPTIVE_MIN, Math.round(level * 2) / 2));
+  d[audioKey] = cur;
+  saveAdaptiveData(d);
+  try { updateAdaptiveHud(); } catch(e) {}
+}
+function updateAdaptive(correct) {
+  let a = null;
+  try { a = getAnimal(); } catch(e) {}
+  if (!a || !a.audioKey) return;
+  const key = a.audioKey;
+  const d = getAdaptiveData();
+  const cur = d[key] || {level: 1.5, cStreak: 0, wStreak: 0};
+  if (typeof cur.level !== "number") cur.level = 1.5;
+  if (correct) {
+    cur.cStreak = (cur.cStreak || 0) + 1;
+    cur.wStreak = 0;
+    if (cur.cStreak >= 3) {
+      cur.level = Math.min(ADAPTIVE_MAX, cur.level + 0.5);
+      cur.cStreak = 0;
+    }
+  } else {
+    cur.wStreak = (cur.wStreak || 0) + 1;
+    cur.cStreak = 0;
+    if (cur.wStreak >= 2) {
+      cur.level = Math.max(ADAPTIVE_MIN, cur.level - 0.5);
+      cur.wStreak = 0;
+    }
+  }
+  d[key] = cur;
+  saveAdaptiveData(d);
+  try { updateAdaptiveHud(); } catch(e) {}
+}
+function adaptiveGradeFor(level) {
+  // 1.0=低年級, 2.0=中年級, 3.0=高年級，基準點純淨，之間平滑混合
+  if (level <= 1.0) return ADAPTIVE_GRADES[0];
+  if (level >= 3.0) return ADAPTIVE_GRADES[2];
+  if (level < 2.0) {
+    const frac = level - 1.0;
+    return Math.random() < frac ? ADAPTIVE_GRADES[1] : ADAPTIVE_GRADES[0];
+  }
+  if (level === 2.0) return ADAPTIVE_GRADES[1];
+  const frac = level - 2.0;
+  return Math.random() < frac ? ADAPTIVE_GRADES[2] : ADAPTIVE_GRADES[1];
+}
+function getAdaptiveIndicator(level) {
+  if (level < 1.5) return {icon: "🌱", label: "簡單"};
+  if (level < 2.5) return {icon: "🌿", label: "普通"};
+  return {icon: "🌳", label: "困難"};
+}
+function updateAdaptiveHud() {
+  let el = document.getElementById("hud-adaptive");
+  if (!el) {
+    const weather = document.getElementById("hud-weather");
+    if (weather && weather.parentNode) {
+      el = document.createElement("span");
+      el.id = "hud-adaptive";
+      el.style.cssText = "font-size:16px;margin-left:6px;cursor:default;";
+      weather.parentNode.insertBefore(el, weather.nextSibling);
+    } else return;
+  }
+  let a = null;
+  try { a = getAnimal(); } catch(e) {}
+  if (!a || !a.audioKey) return;
+  const level = getAdaptiveLevel(a.audioKey);
+  const ind = getAdaptiveIndicator(level);
+  el.textContent = ind.icon;
+  el.title = "自適應難度：" + ind.label + " (Lv." + level.toFixed(1) + ")";
+}
+
+/* --- 掛鉤：年級選擇時設定基準 --- */
+const _origSelectGrade = selectGrade;
+selectGrade = function(grade, btn) {
+  _origSelectGrade(grade, btn);
+  try {
+    const a = getAnimal();
+    if (a && a.audioKey && ADAPTIVE_GRADE_BASE[grade]) setAdaptiveLevel(a.audioKey, ADAPTIVE_GRADE_BASE[grade]);
+  } catch(e) {}
+};
+
+/* --- 掛鉤：出題時按自適應難度選年級（測驗＋魔王戰） --- */
+const _origPickFromBank = pickFromBank;
+pickFromBank = function(grade, askedIds) {
+  try {
+    const a = (typeof getAnimal === "function") ? getAnimal() : null;
+    if (a && a.audioKey) grade = adaptiveGradeFor(getAdaptiveLevel(a.audioKey));
+  } catch(e) {}
+  return _origPickFromBank(grade, askedIds);
+};
+
+/* --- 掛鉤：測驗答題追蹤（只計首次作答） --- */
+const _origSubmitQuizAnswer = submitQuizAnswer;
+submitQuizAnswer = async function(selectedOpt) {
+  let wasCorrect = false, isFirstTry = true;
+  try {
+    isFirstTry = (typeof quizTries === "undefined") || quizTries === 0;
+    const q = quizQuestions[quizIdx];
+    if (q) wasCorrect = normAns(String(selectedOpt).trim()) === normAns(q.answer);
+  } catch(e) {}
+  const r = await _origSubmitQuizAnswer.call(this, selectedOpt);
+  try { if (isFirstTry) updateAdaptive(wasCorrect); } catch(e) {}
+  return r;
+};
+
+/* --- 掛鉤：魔王戰答題追蹤 --- */
+const _origSubmitBossAnswer = submitBossAnswer;
+submitBossAnswer = function(opt, btn) {
+  let wasCorrect = false;
+  try {
+    const q = bossBattle && bossBattle.q;
+    if (q) wasCorrect = normAns(String(opt).trim()) === normAns(q.answer);
+  } catch(e) {}
+  const r = _origSubmitBossAnswer.call(this, opt, btn);
+  try { updateAdaptive(wasCorrect); } catch(e) {}
+  return r;
+};
+
+/* --- 掛鉤：魔王戰選難度時設定基準 --- */
+const _origStartBossBattle = startBossBattle;
+startBossBattle = function() {
+  try {
+    const a = getAnimal();
+    if (a && a.audioKey && typeof bossSelGrade !== "undefined" && ADAPTIVE_GRADE_BASE[bossSelGrade]) {
+      setAdaptiveLevel(a.audioKey, ADAPTIVE_GRADE_BASE[bossSelGrade]);
+    }
+  } catch(e) {}
+  return _origStartBossBattle.call(this);
+};
+
+/* --- 掛鉤：HUD 更新時同步難度指示器 --- */
+const _origUpdateRpgHud = updateRpgHud;
+updateRpgHud = function() {
+  _origUpdateRpgHud();
+  try { updateAdaptiveHud(); } catch(e) {}
+};
+
+/* ================= 閃光小動物系統 ================= */
+const SHINY_KEY = "wws_shiny";
+const SHINY_CHANCE = 0.05;
+function getShinyData() {
+  try { return JSON.parse(localStorage.getItem(SHINY_KEY) || "{}"); }
+  catch (e) { return {}; }
+}
+function saveShinyData(d) {
+  try { localStorage.setItem(SHINY_KEY, JSON.stringify(d)); } catch (e) {}
+}
+function _shinyId(audioKey, stage) { return audioKey + "_s" + stage; }
+function getShinyState(audioKey, stage) {
+  const v = getShinyData()[_shinyId(audioKey, stage)];
+  return v === undefined ? undefined : !!v;
+}
+function isShiny(audioKey, stage) { return getShinyState(audioKey, stage) === true; }
+function setShiny(audioKey, stage, val) {
+  const d = getShinyData();
+  d[_shinyId(audioKey, stage)] = val ? 1 : 0;
+  saveShinyData(d);
+}
+function rollShinyOnce(audioKey, stage) {
+  const cur = getShinyState(audioKey, stage);
+  if (cur !== undefined) return cur;
+  const hit = Math.random() < SHINY_CHANCE;
+  setShiny(audioKey, stage, hit);
+  return hit;
+}
+function getRarity(audioKey, stage) {
+  if (!isShiny(audioKey, stage)) return { key: "normal", label: "普通", bg: "#f0f0f0", fg: "#888", border: "#ddd" };
+  if (stage >= 2) return { key: "legend", label: "\u2728傳說", bg: "linear-gradient(135deg,#ffd54f,#ff9800)", fg: "#fff", border: "#ff9800" };
+  return { key: "rare", label: "\u2728稀有", bg: "linear-gradient(135deg,#64b5f6,#1976d2)", fg: "#fff", border: "#1976d2" };
+}
+function shinyFilterCSS() { return "hue-rotate(130deg) saturate(1.6)"; }
+(function initShinyCSS() {
+  if (document.getElementById("shiny-css")) return;
+  const st = document.createElement("style");
+  st.id = "shiny-css";
+  st.textContent = [
+    "@keyframes shinySparkle{0%,100%{opacity:.25;transform:scale(.75) rotate(0deg)}50%{opacity:1;transform:scale(1.25) rotate(25deg)}}",
+    ".shiny-sparkle{position:absolute;pointer-events:none;z-index:6;animation:shinySparkle 1.6s ease-in-out infinite;}",
+    "@keyframes shinyGlow{0%,100%{filter:hue-rotate(130deg) saturate(1.6) drop-shadow(0 0 6px rgba(255,215,0,.55))}50%{filter:hue-rotate(130deg) saturate(1.6) drop-shadow(0 0 20px rgba(255,215,0,1))}}",
+    ".shiny-glow{animation:shinyGlow 2.2s ease-in-out infinite;}"
+  ].join("\n");
+  document.head.appendChild(st);
+})();
+function applyShinyToMain() {
+  try {
+    if (typeof getAnimal !== "function") return;
+    const a = getAnimal();
+    if (!a || !a.audioKey) return;
+    const stage = getEvolutionStage(a.audioKey);
+    const shiny = isShiny(a.audioKey, stage);
+    const bigEl = document.getElementById("animal-big-icon");
+    if (bigEl) {
+      const img = bigEl.querySelector(":scope > img");
+      if (img) {
+        if (shiny) {
+          img.style.filter = shinyFilterCSS() + " drop-shadow(0 0 14px rgba(255,215,0,.9))";
+          img.classList.add("shiny-glow");
+        } else {
+          img.style.filter = "";
+          img.classList.remove("shiny-glow");
+        }
+      }
+      bigEl.querySelectorAll(".shiny-sparkle").forEach(e => e.remove());
+      if (shiny) {
+        if (!bigEl.style.position) bigEl.style.position = "relative";
+        [["\u2728", "8%", "12%", "0s"], ["\u2728", "78%", "20%", ".5s"], ["\uD83D\uDCAB", "15%", "70%", "1s"]].forEach(cfg => {
+          const s = document.createElement("span");
+          s.className = "shiny-sparkle";
+          s.textContent = cfg[0];
+          s.style.left = cfg[1]; s.style.top = cfg[2];
+          s.style.animationDelay = cfg[3];
+          bigEl.appendChild(s);
+        });
+      }
+    }
+    const av = document.getElementById("hud-avatar");
+    if (av) {
+      const img = av.querySelector("img");
+      if (img) img.style.filter = shiny ? shinyFilterCSS() : "";
+    }
+    const nameEl = document.getElementById("animal-title-name");
+    if (nameEl) {
+      const old = nameEl.querySelector(".rarity-badge");
+      if (old) old.remove();
+      const r = getRarity(a.audioKey, stage);
+      if (r.key !== "normal") {
+        const b = document.createElement("span");
+        b.className = "rarity-badge";
+        b.textContent = r.label;
+        b.style.cssText = "font-size:11px;font-weight:bold;padding:2px 8px;border-radius:10px;margin-left:6px;color:" + r.fg + ";background:" + r.bg + ";border:2px solid " + r.border + ";vertical-align:middle;";
+        nameEl.appendChild(b);
+      }
+    }
+  } catch (e) {}
+}
+(function wrapApplyAnimal() {
+  if (typeof window.applyAnimal !== "function" || window.applyAnimal._shinyWrapped) return;
+  const _orig = window.applyAnimal;
+  const wrapped = function() {
+    _orig.apply(this, arguments);
+    applyShinyToMain();
+  };
+  wrapped._shinyWrapped = true;
+  window.applyAnimal = wrapped;
+})();
+(function wrapLevelUpModal() {
+  if (typeof window.showLevelUpModal !== "function" || window.showLevelUpModal._shinyWrapped) return;
+  const _orig = window.showLevelUpModal;
+  const wrapped = function(animal, level, evolved, evoName, evoImg) {
+    let shinyHit = false;
+    if (evolved && animal && animal.audioKey && typeof getEvolutionStage === "function") {
+      const stage = getEvolutionStage(animal.audioKey);
+      shinyHit = rollShinyOnce(animal.audioKey, stage);
+    }
+    _orig.apply(this, arguments);
+    if (evolved && shinyHit) {
+      setTimeout(() => enhanceShinyCeremony(evoName), 60);
+      if (typeof launchConfetti === "function") {
+        setTimeout(launchConfetti, 400);
+        setTimeout(launchConfetti, 900);
+      }
+    }
+  };
+  wrapped._shinyWrapped = true;
+  window.showLevelUpModal = wrapped;
+})();
+function enhanceShinyCeremony(evoName) {
+  try {
+    const modal = document.getElementById("levelup-modal");
+    if (!modal) return;
+    const img = modal.querySelector("img");
+    if (img) {
+      img.style.filter = shinyFilterCSS() + " drop-shadow(0 0 22px rgba(255,215,0,1))";
+      img.classList.add("shiny-glow");
+    }
+    const box = modal.firstElementChild;
+    if (box && !box.querySelector(".shiny-banner")) {
+      const banner = document.createElement("div");
+      banner.className = "shiny-banner";
+      banner.innerHTML = '<div style="margin:10px 0;padding:12px;background:linear-gradient(135deg,#fff9c4,#ffd54f);border-radius:16px;border:3px solid #ffc107;">'
+        + '<div style="font-size:26px;font-weight:bold;color:#e65100;animation:shinySparkle 1.1s infinite;">\u2728 閃光！\u2728</div>'
+        + '<div style="font-size:13px;color:#f57f17;font-weight:bold;margin-top:4px;">超稀有閃光' + evoName + '！機率只有 5%！</div></div>';
+      if (img && img.parentNode === box) img.after(banner);
+      else box.insertBefore(banner, box.firstChild);
+    }
+    ["\u2728", "\uD83D\uDCAB", "\u2B50"].forEach((t, i) => {
+      const s = document.createElement("div");
+      s.className = "shiny-sparkle";
+      s.textContent = t;
+      s.style.fontSize = "28px";
+      s.style.left = (20 + i * 25) + "%";
+      s.style.top = "8%";
+      s.style.animationDelay = (i * 0.3) + "s";
+      modal.appendChild(s);
+      setTimeout(() => s.remove(), 4000);
+    });
+  } catch (e) {}
+}
+(function wrapOpenDex() {
+  if (typeof window.openDex !== "function" || window.openDex._shinyWrapped) return;
+  const _orig = window.openDex;
+  const wrapped = function() {
+    _orig.apply(this, arguments);
+    setTimeout(enhanceDexShiny, 50);
+  };
+  wrapped._shinyWrapped = true;
+  window.openDex = wrapped;
+})();
+function enhanceDexShiny() {
+  try {
+    if (typeof ANIMALS === "undefined") return;
+    const rows = document.querySelectorAll('#dex-modal > div > div[style*="margin-bottom:10px"]');
+    rows.forEach((row, ai) => {
+      const a = ANIMALS[ai];
+      if (!a || !a.audioKey) return;
+      const grid = row.children[1];
+      if (!grid) return;
+      const cells = grid.children;
+      for (let si = 0; si < cells.length; si++) {
+        const cell = cells[si];
+        if (getEvolutionStage(a.audioKey) < si) continue;
+        const r = getRarity(a.audioKey, si);
+        const imgBox = cell.children[0];
+        const nameDiv = cell.children[1];
+        if (r.key !== "normal") {
+          if (imgBox) {
+            imgBox.style.border = "3px solid " + r.border;
+            imgBox.style.boxShadow = "0 0 14px " + (r.key === "legend" ? "rgba(255,152,0,.9)" : "rgba(25,118,210,.8)");
+            imgBox.style.position = "relative";
+            const sp = document.createElement("span");
+            sp.textContent = "\u2728";
+            sp.style.cssText = "position:absolute;top:-10px;right:-6px;font-size:20px;animation:shinySparkle 1.6s infinite;z-index:2;";
+            imgBox.appendChild(sp);
+          }
+          const img = cell.querySelector("img");
+          if (img) img.style.filter = shinyFilterCSS();
+        }
+        if (nameDiv && !nameDiv.querySelector(".rarity-badge")) {
+          const b = document.createElement("span");
+          b.className = "rarity-badge";
+          b.textContent = r.label;
+          b.style.cssText = "font-size:10px;font-weight:bold;padding:2px 6px;border-radius:8px;margin-left:4px;color:" + r.fg + ";background:" + r.bg + ";border:1px solid " + r.border + ";";
+          nameDiv.appendChild(b);
+        }
+      }
+    });
+  } catch (e) {}
+}
+function shinyCatchUp() {
+  try {
+    if (localStorage.getItem("wws_shiny_init") === "1") return;
+    localStorage.setItem("wws_shiny_init", "1");
+    if (typeof ANIMALS === "undefined" || typeof getEvolutionStage !== "function") return;
+    ANIMALS.forEach(a => {
+      const stage = getEvolutionStage(a.audioKey);
+      for (let s = 0; s <= stage; s++) rollShinyOnce(a.audioKey, s);
+    });
+    applyShinyToMain();
+  } catch (e) {}
+}
+setTimeout(shinyCatchUp, 2500);

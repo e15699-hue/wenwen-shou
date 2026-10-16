@@ -933,11 +933,15 @@ function pickBestVoice() {
       || vs.find(v => v.lang === "zh-TW")
       || vs[0];
 }
-/* 語音用文字轉換：__ 在數字題念「多少」，其他念「什麼」 */
+/* 語音用文字轉換 */
 function speechText(text, qtype) {
   if (!text) return text;
-  // 數學相關題型：計算、填充、應用、比大小 → 念「多少」
-  const mathTypes = ["計算題", "填充題", "應用題", "比大小"];
+  // 比大小：__ 念「大於小於」
+  if (qtype === "比大小") {
+    return text.replace(/__/g, "大於小於");
+  }
+  // 數學相關題型：計算、填充、應用 → 念「多少」
+  const mathTypes = ["計算題", "填充題", "應用題"];
   const replacement = mathTypes.includes(qtype) ? "多少" : "什麼";
   return text.replace(/__/g, replacement);
 }

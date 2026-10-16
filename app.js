@@ -854,7 +854,7 @@ let currentRole = null;
 function loginAs(role) {
 currentRole = role;
 document.getElementById("login-screen").style.display = "none";
-document.getElementById("kid-zone").style.display = role === "kid" ? "block" : "none";
+document.getElementById("kid-zone").style.display = role === "kid" ? "flex" : "none";
 document.getElementById("parent-zone").style.display = role === "parent" ? "block" : "none";
 window.scrollTo(0, 0);
 if (role === "kid") {
@@ -1157,7 +1157,7 @@ const stars = okCount === 5 ? "⭐⭐⭐" : okCount >= 3 ? "⭐⭐" : okCount >=
 const msg = okCount === 5 ? "全對！你是數學小天才！" :
 okCount >= 3 ? "很不錯！繼續加油！" :
 okCount >= 1 ? "有進步！多練習會更厲害！" : "沒關係，練習就是進步的開始！";
-r.innerHTML = `<div style="font-size:48px;">${stars}</div><div style="font-size:24px;font-weight:bold;margin:10px 0;">${msg}</div><div style="font-size:18px;">答對 ${okCount} / 5 題，得分 ${quizScore} 分</div><div style="font-size:16px;color:#b8860b;margin-top:8px;">🪙 +${quizScore} 點已加入！</div><button class="btn-teal" onclick="resetQuiz()" style="margin-top:16px;font-size:18px;">🔄 再玩一次</button><button class="btn-gray" onclick="switchMode('ask')" style="margin-top:8px;">📷 去問問題</button>`;
+r.innerHTML = `<div style="font-size:48px;">${stars}</div><div style="font-size:24px;font-weight:bold;margin:10px 0;">${msg}</div><div style="font-size:18px;">答對 ${okCount} / 5 題，得分 ${quizScore} 分</div><div style="font-size:16px;color:#b8860b;margin-top:8px;">🪙 +${quizScore} 點已加入！</div><button class="btn-teal" onclick="resetQuiz()" style="margin-top:16px;font-size:18px;">🔄 再玩一次</button><button class="btn-gray" onclick="goScene('photo')" style="margin-top:8px;">📷 去問問題</button>`;
 speak(msg + `你答對了${okCount}題，得到${quizScore}分！`);
 launchConfetti();
 addPoints(quizScore);
@@ -1298,7 +1298,7 @@ d.style.display = "block";
 const remaining = getErrors().length;
 d.innerHTML = `<div style="font-size:48px;">${remaining === 0 ? "🏆" : "💪"}</div><div style="font-size:22px;font-weight:bold;margin:10px 0;">
 ${remaining === 0 ? "太厲害了！錯題全部清空！" : `複習完成！這次學會了 ${errorMastered} 題`}
-</div><div style="font-size:16px;color:#666;">${remaining === 0 ? "繼續保持，你是最棒的！" : `還有 ${remaining} 題，下次再來挑戰吧！`}</div><button class="btn-teal" onclick="switchMode('quiz')" style="margin-top:16px;font-size:18px;">🎲 去玩隨機出題</button>`;
+</div><div style="font-size:16px;color:#666;">${remaining === 0 ? "繼續保持，你是最棒的！" : `還有 ${remaining} 題，下次再來挑戰吧！`}</div><button class="btn-teal" onclick="goScene('quiz')" style="margin-top:16px;font-size:18px;">🎲 去玩隨機出題</button>`;
 const msg = remaining === 0 ? "太厲害了！錯題全部清空，你是最棒的！" : `複習完成！這次學會了${errorMastered}題，還有${remaining}題下次再挑戰！`;
 speak(msg);
 if (remaining === 0) launchConfetti();
@@ -1585,7 +1585,7 @@ ${isOwned ? '<div style="font-size:11px;color:#4CAF50;margin-top:4px;">✅ 已�
 </div>`;
 }).join("");
 modal.innerHTML = `
-<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 style="margin:0;font-size:20px;">🛍️ 裝飾品商城</h2><div style="background:#fff3e0;padding:6px 14px;border-radius:15px;font-weight:bold;color:#e65100;">⭐ ${kidPoints} 點</div></div><p style="font-size:13px;color:#666;margin:0 0 12px;">幫你的小動物打扮！點數從遊戲中賺取 💪</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${itemsHtml}</div><button onclick="document.getElementById('shop-modal').remove();" style="margin-top:16px;width:100%;padding:12px;font-size:16px;font-weight:bold;color:#fff;background:#9e9e9e;border:none;border-radius:12px;cursor:pointer;">關閉</button></div>`;
+<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><h2 style="margin:0;font-size:20px;">🛍️ 裝飾品商城</h2><div style="background:#fff3e0;padding:6px 14px;border-radius:15px;font-weight:bold;color:#e65100;">⭐ ${kidPoints} 點</div></div><p style="font-size:13px;color:#666;margin:0 0 12px;">幫你的小動物打扮！點數從遊戲中賺取 💪</p><div style="background:#fff8e1;border:2px solid #ffd54f;border-radius:16px;padding:12px;margin-bottom:12px;"><div style="font-size:15px;font-weight:bold;color:#e65100;margin-bottom:8px;">🎒 我的背包 <span id="food-modal-feedcount" style="font-size:12px;color:#999;"></span></div><div id="food-backpack" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;"></div></div><div style="font-size:15px;font-weight:bold;margin-bottom:8px;">🛒 商城</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${itemsHtml}</div><button onclick="document.getElementById('shop-modal').remove();" style="margin-top:16px;width:100%;padding:12px;font-size:16px;font-weight:bold;color:#fff;background:#9e9e9e;border:none;border-radius:12px;cursor:pointer;">關閉</button></div>`;
 document.body.appendChild(modal);
 modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
 }
@@ -2015,6 +2015,23 @@ setTimeout(() => alert(msg), 300);
 renderFeedZone();
 }
 function renderFeedZone() {
+const mb = document.getElementById("food-backpack");
+const mfc = document.getElementById("food-modal-feedcount");
+if (mb) {
+const inv = getFoodInv();
+const a = getAnimal();
+const count = getFeedCount();
+if (mfc) mfc.textContent = `今日已餵 ${count}/${MAX_FEED_PER_DAY}`;
+const items = Object.keys(inv).filter(id => inv[id] > 0);
+mb.innerHTML = items.length === 0 ? '<div style="font-size:13px;color:#999;">還沒有食物，往下買吧！🛒</div>' : items.map(id => {
+const f = FOODS.find(x => x.id === id);
+if (!f) return "";
+const liked = f.likedBy && f.likedBy.includes(a.audioKey);
+const disliked = f.disliked;
+const badge = liked ? '<span style="font-size:10px;background:#c8e6c9;padding:2px 6px;border-radius:8px;">❤️ 最愛</span>' : disliked ? '<span style="font-size:10px;background:#ffcdd2;padding:2px 6px;border-radius:8px;">⚠️ 小心</span>' : '';
+return `<button onclick="feedAnimal('${id}')" style="background:#fff;border:2px solid #ffd54f;border-radius:12px;padding:8px 10px;cursor:pointer;text-align:center;min-width:70px;"><div style="font-size:28px;">${f.emoji}</div><div style="font-size:11px;font-weight:bold;">${f.name}</div><div style="font-size:11px;color:#e65100;">x${inv[id]}</div>${badge}</button>`;
+}).join("");
+}
 const zone = document.getElementById("feed-foods");
 if (!zone) return;
 const inv = getFoodInv();
@@ -2056,9 +2073,10 @@ const tag = liked ? '<div style="font-size:11px;color:#2e7d32;font-weight:bold;"
 return `<div style="background:#fff;border-radius:16px;padding:12px;text-align:center;${hl}"><div style="font-size:40px;">${f.emoji}</div><div style="font-size:14px;font-weight:bold;margin:4px 0;">${f.name}</div><div style="font-size:12px;color:#666;">${f.desc}</div>${tag}
 <button onclick="buyFood('${f.id}')" style="margin-top:8px;padding:8px 16px;font-size:14px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#ff9800,#f57c00);border:none;border-radius:20px;cursor:pointer;">${f.price} 點</button></div>`;
 }).join("");
-modal.innerHTML = `<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><h2 style="margin:0;font-size:20px;">🍽️ 食物商城</h2><div style="background:#fff3e0;padding:6px 14px;border-radius:15px;font-weight:bold;color:#e65100;">⭐ ${kidPoints} 點</div></div><p style="font-size:13px;color:#666;margin:0 0 12px;">買食物餵${a.name}長大！❤️標記的是${a.name}的最愛，經驗更多！<br>⚠️ 辣椒和檸檬很難吃，會扣經驗值喔！</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${itemsHtml}</div><button onclick="document.getElementById('food-modal').remove();" style="margin-top:16px;width:100%;padding:12px;font-size:16px;font-weight:bold;color:#fff;background:#9e9e9e;border:none;border-radius:12px;cursor:pointer;">關閉</button></div>`;
+modal.innerHTML = `<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><h2 style="margin:0;font-size:20px;">🍽️ 餵食 & 食物商城</h2><div style="background:#fff3e0;padding:6px 14px;border-radius:15px;font-weight:bold;color:#e65100;">⭐ ${kidPoints} 點</div></div><p style="font-size:13px;color:#666;margin:0 0 12px;">買食物餵${a.name}長大！❤️標記的是${a.name}的最愛，經驗更多！<br>⚠️ 辣椒和檸檬很難吃，會扣經驗值喔！</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${itemsHtml}</div><button onclick="document.getElementById('food-modal').remove();" style="margin-top:16px;width:100%;padding:12px;font-size:16px;font-weight:bold;color:#fff;background:#9e9e9e;border:none;border-radius:12px;cursor:pointer;">關閉</button></div>`;
 document.body.appendChild(modal);
 modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
+if (typeof renderFeedZone === "function") renderFeedZone();
 }
 /* ===== RPG 飽食度系統 ===== */
 const MAX_SAT = 100;
@@ -2482,7 +2500,7 @@ function openDex() {
 
 
 /* ===== 農場場景 + 農場布置系統 ===== */
-function goScene(n){document.querySelectorAll(".scene").forEach(s=>s.classList.remove("active"));const t=document.getElementById("scene-"+n);if(t)t.classList.add("active");if(n==="quiz"){const qc=document.getElementById("quiz-container");if(qc){const gb=document.querySelector(".grade-btns"),sb=document.getElementById("quiz-start-btn"),qa=document.getElementById("quiz-area"),qr=document.getElementById("quiz-result");[gb,sb,qa,qr].forEach(function(el){if(el&&el.parentNode!==qc)qc.appendChild(el);});}if(typeof startQuiz==="function")startQuiz();}window.scrollTo(0,0);}
+function goScene(n){document.querySelectorAll(".scene").forEach(function(s){s.classList.remove("active");});var t=document.getElementById("scene-"+n);if(t)t.classList.add("active");if(n==="quiz"){var qc=document.getElementById("quiz-container");if(qc){var gb=document.querySelector(".grade-btns"),sb=document.getElementById("quiz-start-btn"),qa=document.getElementById("quiz-area"),qr=document.getElementById("quiz-result");[gb,sb,qa,qr].forEach(function(el){if(el&&el.parentNode!==qc)qc.appendChild(el);});}if(typeof startQuiz==="function")startQuiz();}if(n==="photo"){var pc=document.getElementById("photo-container"),ma=document.getElementById("mode-ask");if(pc&&ma&&ma.parentNode!==pc)pc.appendChild(ma);}if(n==="error"){var ec=document.getElementById("error-container"),me=document.getElementById("mode-error");if(ec&&me&&me.parentNode!==ec)ec.appendChild(me);if(typeof renderErrorBook==="function")renderErrorBook();}window.scrollTo(0,0);}
 const DECO_ITEMS=[{id:"tree",icon:"🌳",name:"大樹",price:100},{id:"flower",icon:"🌷",name:"鬱金香",price:30},{id:"sunflower",icon:"🌻",name:"向日葵",price:40},{id:"pond",icon:"🏞️",name:"小池塘",price:200},{id:"house",icon:"🏠",name:"小木屋",price:500},{id:"windmill",icon:"🎡",name:"風車",price:300},{id:"fountain",icon:"⛲",name:"噴泉",price:350},{id:"bench",icon:"🪑",name:"長椅",price:80},{id:"mushroom",icon:"🍄",name:"蘑菇",price:25}];
 function getDeco(){try{return JSON.parse(localStorage.getItem("wws_deco")||"[]")}catch(e){return[]}}
 function saveDeco(d){localStorage.setItem("wws_deco",JSON.stringify(d))}

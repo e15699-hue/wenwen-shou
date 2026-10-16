@@ -1090,10 +1090,20 @@ const GRADE_PROMPT = {
   "中年級": "國小 3-4 年級程度：乘除法、兩位數加減、分數入門（1/2、1/4）、簡單幾何（周長）。可以有兩步驟應用題。",
   "高年級": "國小 5-6 年級程度：分數四則運算、小數、面積體積、比例、速率。應用題可以有生活情境。"
 };
+const QUIZ_TYPES = [
+  "計算題：直接算式，如「15 + 27 = __」",
+  "填充題：算式中挖空，如「__ + 7 = 15」或「3 × __ = 24」",
+  "應用題：生活情境問句，如「小明有 15 顆蘋果，吃掉 7 顆，還剩幾顆？」",
+  "比大小：在 __ 中填入 ＞、＜ 或 ＝，如「15 __ 27」",
+  "是非題：判斷對錯，如「7 + 8 = 16，對不對？」（答案填「對」或「不對」）",
+  "選擇題：給 3 個選項，如「12 + 8 = ? A.18 B.20 C.22」（答案填選項字母）",
+];
 const QUIZ_ROLE = `你是「問問獸」出題官，一隻愛出數學題考小朋友的怪獸。
 每次只出一題，輸出 JSON 格式：
-{"question": "題目文字（40字內，台灣國小生口語）", "answer": "正確答案（純數字或簡短文字）", "hint": "答錯時的提示（引導思考，不直接給答案，30字內）", "type": "題型（如加法、應用題）"}
-絕對不要在 question 裡透露答案。`;
+{"question": "題目文字（40字內，台灣國小生口語）", "answer": "正確答案（純數字、符號或簡短文字）", "hint": "答錯時的提示（引導思考，不直接給答案，30字內）", "type": "題型"}
+題型要多樣化，輪流出以下幾種：
+${QUIZ_TYPES.map((t, i) => (i + 1) + ". " + t).join("\n")}
+絕對不要在 question 裡透露答案。hint 要針對該題型給思考方向。`;
 
 let quizGrade = null, quizQuestions = [], quizIdx = 0;
 let quizScore = 0, quizStreak = 0, quizResults = [];
@@ -1169,10 +1179,17 @@ async function nextQuizQuestion() {
   try {
     // 避免重複：告訴 AI 之前出過的題目
     const avoid = quizQuestions.map(q => q.question).join("；");
-    const prompt = GRADE_PROMPT[quizGrade] + (avoid ? "\n不要出以下重複的題目：" + avoid : "") + "\n請出一題新的數學題。";
+    // 輪換題型：按題號循環 6 種題型
+    const typeIdx = quizIdx % QUIZ_TYPES.length;
+    const wantType = QUIZ_TYPES[typeIdx];
+    const prompt = GRADE_PROMPT[quizGrade]
+      + "\n這次請出「" + wantType + "」。"
+      + (avoid ? "\n不要出以下重複的題目：" + avoid : "")
+      + "\n請出一題新的數學題。";
     const q = await quizCallGemini(prompt);
     quizQuestions.push(q);
-    qEl.textContent = q.question;
+    // 顯示題型標籤
+    qEl.innerHTML = `<div style="font-size:14px;color:#b8860b;margin-bottom:8px;">【${esc(q.type || "數學題")}】</div><div>${esc(q.question)}</div>`;
     speak(q.question);
   } catch (e) {
     qEl.textContent = "出題失敗了…";
@@ -1182,9 +1199,14 @@ async function nextQuizQuestion() {
 }
 
 function normAns(s) {
-  // 正規化答案：全形轉半形、去空格、去「顆隻個」等量詞
-  return String(s).replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
-    .replace(/\s+/g, "").replace(/[顆隻個條元塊片]/g, "");
+  // 正規化答案：全形轉半形、去空格、去量詞、符號統一
+  return String(s).replace(/[０-９Ａ-Ｚａ-ｚ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/\s+/g, "").replace(/[顆隻個條元塊片]/g, "")
+    // 比大小符號統一
+    .replace(/[＞]/g, ">").replace(/[＜]/g, "<").replace(/[＝]/g, "=")
+    // 是非題統一
+    .replace(/^(是|對|正確|○|✓)$/, "對").replace(/^(否|不對|錯|錯誤|×|✗)$/, "不對")
+    .toUpperCase();  // 選擇題 A/B/C 統一大小寫
 }
 
 async function submitQuizAnswer() {

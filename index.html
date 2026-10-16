@@ -1122,16 +1122,23 @@ const ANIMALS = [
     sound: "哼哼！" },
 ];
 /* 預錄音檔播放（固定台詞用 AI 動物音） */
-function playAnimalSound(soundKey) {
+let audioCache = {};
+function playAnimalSound(soundKey, fallbackText) {
   try {
     const a = getAnimal();
-    const audio = new Audio(`audio/${a.audioKey}_${soundKey}.mp3`);
+    const key = `${a.audioKey}_${soundKey}`;
+    // 如果音檔載入失敗，用瀏覽器語音當備案
+    const audio = new Audio(`audio/${key}.mp3`);
     audio.play().catch(() => {
-      // 播放失敗時 fallback 到瀏覽器語音
-      console.log("音檔播放失敗，使用瀏覽器語音");
+      if (fallbackText) speak(fallbackText);
     });
+    // 音檔載入錯誤時也用備案
+    audio.onerror = () => {
+      if (fallbackText) speak(fallbackText);
+    };
     return true;
   } catch (e) {
+    if (fallbackText) speak(fallbackText);
     return false;
   }
 }
@@ -1161,8 +1168,8 @@ function setAnimal(idx) {
   try { localStorage.setItem("wws_animal", JSON.stringify(currentAnimal)); } catch (e) {}
   applyAnimal();
   closeAnimalPicker();
-  // 用新選的小動物的預錄聲音打招呼
-  playAnimalSound("greeting");
+  // 用新選的小動物的預錄聲音打招呼（失敗時用瀏覽器語音）
+  playAnimalSound("greeting", currentAnimal.greeting + "以後都由我陪你玩喔！");
 }
 function applyAnimal() {
   const a = getAnimal();
@@ -1223,8 +1230,8 @@ async function startTeaching() {
   document.getElementById("teaching-animal").textContent = a.icon;
   renderTeachingStep();
   document.getElementById("teaching-modal").style.display = "flex";
-  // 先播放預錄的教學開場，再念第一步
-  playAnimalSound("teach");
+  // 先播放預錄的教學開場（失敗時用瀏覽器語音），再念第一步
+  playAnimalSound("teach", "讓我來教你！");
   setTimeout(() => speak(teachingSteps[0]), 1500);
 }
 function renderTeachingStep() {
@@ -1266,7 +1273,7 @@ function retryQuestion() {
   document.getElementById("quiz-feedback").textContent = "";
   document.getElementById("quiz-feedback").className = "quiz-feedback";
   document.querySelectorAll("#quiz-options button").forEach(b => b.disabled = false);
-  playAnimalSound("retry");
+  playAnimalSound("retry", "再試一次吧，你一定可以的！");
 }
 
 /* ===== 假登入：身份選擇 ===== */
@@ -1520,8 +1527,8 @@ async function submitQuizAnswer(selectedOpt) {
     fb.className = "quiz-feedback ok";
     const ap = getAnimal().praise;
     const praiseIdx = Math.floor(Math.random() * ap.length);
-    // 用預錄的動物音播放鼓勵
-    playAnimalSound("praise" + (praiseIdx + 1));
+    // 用預錄的動物音播放鼓勵（失敗時用瀏覽器語音）
+    playAnimalSound("praise" + (praiseIdx + 1), ap[praiseIdx]);
     launchConfetti();
     dashStars += 1; updateDash();
     setTimeout(() => { quizIdx++; quizIdx < 5 ? nextQuizQuestion() : finishQuiz(); }, 1500);
@@ -1550,8 +1557,8 @@ async function submitQuizAnswer(selectedOpt) {
       const hintBox = document.getElementById("quiz-hint");
       hintBox.innerHTML = "💡 <b>提示：</b>" + esc(q.hint);
       hintBox.style.display = "block";
-      // 先播放預錄的動物安慰音，再用瀏覽器語音念提示
-      playAnimalSound("encourage");
+      // 先播放預錄的動物安慰音（失敗時用瀏覽器語音），再念提示
+      playAnimalSound("encourage", getAnimal().encourage);
       setTimeout(() => speak(q.hint), 2000);
       document.querySelectorAll("#quiz-options button").forEach(b => b.disabled = false);
     }

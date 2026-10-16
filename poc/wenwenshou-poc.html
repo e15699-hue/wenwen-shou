@@ -1148,9 +1148,11 @@ async function quizCallGemini(prompt) {
 
 async function startQuiz() {
   if (!quizGrade) return;
-  if (!key()) {
+  // 本地題庫不需要 API Key；只有題庫載入失敗 fallback 到 AI 時才需要
+  const bank = await loadBank(quizGrade);
+  if (!bank && !key()) {
     document.getElementById("quiz-err").innerHTML =
-      '還沒設定金鑰喔！請爸爸媽媽切換到「👨‍👩‍👧 家長區」幫忙設定。<br><button class="btn-teal" onclick="loginAs(\'parent\')" style="margin-top:8px;">去家長區設定</button>';
+      '題庫載入失敗，且還沒設定金鑰。請爸爸媽媽切換到「👨‍👩‍👧 家長區」幫忙設定。<br><button class="btn-teal" onclick="loginAs(\'parent\')" style="margin-top:8px;">去家長區設定</button>';
     return;
   }
   // 重置
@@ -1165,6 +1167,32 @@ async function startQuiz() {
   await nextQuizQuestion();
 }
 
+/* ===== 本地題庫（0 成本，優先使用） ===== */
+let localBank = {};  // grade -> [questions]
+let bankLoaded = {};
+async function loadBank(grade) {
+  if (bankLoaded[grade]) return localBank[grade];
+  try {
+    const res = await fetch("data/questions_" + grade + ".json");
+    if (!res.ok) throw new Error("not found");
+    const qs = await res.json();
+    localBank[grade] = qs;
+    bankLoaded[grade] = true;
+    return qs;
+  } catch (e) {
+    bankLoaded[grade] = false;
+    return null;
+  }
+}
+function pickFromBank(grade, askedIds) {
+  const qs = localBank[grade];
+  if (!qs || !qs.length) return null;
+  // 過濾已出過的
+  const pool = qs.filter(q => !askedIds.includes(q.id));
+  const src = pool.length ? pool : qs;  // 都出過就重洗
+  return src[Math.floor(Math.random() * src.length)];
+}
+
 async function nextQuizQuestion() {
   quizTries = 0;
   document.getElementById("quiz-hint").style.display = "none";
@@ -1175,18 +1203,23 @@ async function nextQuizQuestion() {
   document.getElementById("quiz-num").textContent = quizIdx + 1;
   const qEl = document.getElementById("quiz-question");
   qEl.textContent = "🦖 問問獸想題目中…";
-  speak("問問獸想題目中");
   try {
-    // 避免重複：告訴 AI 之前出過的題目
-    const avoid = quizQuestions.map(q => q.question).join("；");
-    // 輪換題型：按題號循環 6 種題型
-    const typeIdx = quizIdx % QUIZ_TYPES.length;
-    const wantType = QUIZ_TYPES[typeIdx];
-    const prompt = GRADE_PROMPT[quizGrade]
-      + "\n這次請出「" + wantType + "」。"
-      + (avoid ? "\n不要出以下重複的題目：" + avoid : "")
-      + "\n請出一題新的數學題。";
-    const q = await quizCallGemini(prompt);
+    // 優先從本地題庫抽（0 成本）
+    const askedIds = quizQuestions.map(q => q.id).filter(Boolean);
+    let bank = await loadBank(quizGrade);
+    let q = bank ? pickFromBank(quizGrade, askedIds) : null;
+    if (!q) {
+      // 本地題庫沒有才用 AI（ fallback ）
+      if (!key()) throw new Error("NO_KEY");
+      const avoid = quizQuestions.map(q => q.question).join("；");
+      const typeIdx = quizIdx % QUIZ_TYPES.length;
+      const wantType = QUIZ_TYPES[typeIdx];
+      const prompt = GRADE_PROMPT[quizGrade]
+        + "\n這次請出「" + wantType + "」。"
+        + (avoid ? "\n不要出以下重複的題目：" + avoid : "")
+        + "\n請出一題新的數學題。";
+      q = await quizCallGemini(prompt);
+    }
     quizQuestions.push(q);
     // 顯示題型標籤
     qEl.innerHTML = `<div style="font-size:14px;color:#b8860b;margin-bottom:8px;">【${esc(q.type || "數學題")}】</div><div>${esc(q.question)}</div>`;

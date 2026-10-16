@@ -263,8 +263,8 @@
 
 <!-- ===== 模式切換 ===== -->
 <div class="mode-tabs">
-  <div class="mode-tab active" id="tab-ask" onclick="switchMode('ask')">🦖 問問獸<span class="mdesc">拍照問不會的題目</span></div>
-  <div class="mode-tab" id="tab-quiz" onclick="switchMode('quiz')">🎲 隨機出題<span class="mdesc">選年級玩數學遊戲</span></div>
+  <div class="mode-tab" id="tab-ask" onclick="switchMode('ask')">🦖 問問獸<span class="mdesc">拍照問不會的題目</span></div>
+  <div class="mode-tab active" id="tab-quiz" onclick="switchMode('quiz')">🎲 隨機出題<span class="mdesc">選年級玩數學遊戲</span></div>
 </div>
 
 <!-- ===== 小孩：點數與獎勵進度 ===== -->
@@ -287,7 +287,7 @@
 </div>
 
 <!-- ===== 小孩主介面：問問獸 ===== -->
-<div id="mode-ask">
+<div id="mode-ask" style="display:none;">
 <div class="card" id="photo-card">
   <h3 style="text-align:center;font-size:20px;">📸 拍下不會的題目</h3>
   <label for="photo" id="photo-label">
@@ -333,7 +333,7 @@
 </div><!-- /mode-ask -->
 
 <!-- ===== 小孩主介面：隨機出題 ===== -->
-<div id="mode-quiz" style="display:none;">
+<div id="mode-quiz">
 <div class="card" id="quiz-card">
   <h3 style="text-align:center;font-size:20px;">🎲 隨機出題大挑戰</h3>
   <p style="text-align:center;color:#666;">選你的年級，問問獸隨機出 5 題考考你！</p>

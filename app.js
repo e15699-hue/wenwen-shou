@@ -665,6 +665,7 @@ return m ? { x: +m[1], y: +m[2] } : { x: 0, y: 0 };
 }
 function onStart(cx, cy) {
 dragging = true; moved = 0;
+if (typeof Walker !== "undefined") Walker.pause();
 startX = cx; startY = cy;
 const p = getPos(); baseX = p.x; baseY = p.y;
 el().style.cursor = "grabbing";
@@ -683,9 +684,11 @@ el().style.cursor = "grab";
 el().style.transition = "transform .2s";
 const p = getPos();
 try { localStorage.setItem("wws_animal_pos", JSON.stringify(p)); } catch (e) {}
+if (typeof Walker !== "undefined") Walker.resume();
 if (moved < 10) petAnimal();
 }
 function petAnimal() {
+if (typeof Walker !== "undefined") Walker.happy();
 const e = el();
 const img = e.querySelector("img");
 const target = img || e;
@@ -2510,3 +2513,21 @@ function removeDeco(i){if(!confirm("要移除這個裝飾嗎？（不退點數�
 function buyDeco(id){const it=DECO_ITEMS.find(x=>x.id===id);if(kidPoints<it.price){alert("點數不夠！"+it.name+"要 "+it.price+" 點，你有 "+kidPoints+" 點。");return;}kidPoints-=it.price;try{localStorage.setItem("wws_points",kidPoints)}catch(e){}const kp=document.getElementById("kid-points");if(kp)kp.textContent=kidPoints;const a=getDeco();a.push({id,x:10+Math.random()*70,y:55+Math.random()*25,s:48});saveDeco(a);renderDeco();if(typeof updatePointsDisplay==="function")updatePointsDisplay();if(typeof updateRpgHud==="function")updateRpgHud();alert("🎉 買到 "+it.icon+" "+it.name+"！拖曳可以移動，長按移除。");openDecoShop();}
 function openDecoShop(){let m=document.getElementById("deco-modal");if(m)m.remove();m=document.createElement("div");m.id="deco-modal";m.style.cssText="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;justify-content:center;align-items:center;padding:16px;";const ow=getDeco().length;const items=DECO_ITEMS.map(d=>'<div style="background:#fff;border:2px solid #e0e0e0;border-radius:16px;padding:12px;text-align:center"><div style="font-size:44px">'+d.icon+'</div><div style="font-size:14px;font-weight:bold">'+d.name+'</div><div style="font-size:13px;color:#f57f17;font-weight:bold">🪙 '+d.price+'點</div><button onclick="buyDeco(\''+d.id+'\')" style="margin-top:8px;padding:8px 16px;font-size:13px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#7e57c2,#5c6bc0);border:none;border-radius:12px;cursor:pointer">購買</button></div>').join("");m.innerHTML='<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto"><h2 style="margin:0;font-size:20px;text-align:center">🏡 農場布置</h2><p style="text-align:center;font-size:13px;color:#666">已放置 '+ow+' 個｜💰 '+kidPoints+' 點</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+items+'</div><button onclick="document.getElementById(\'deco-modal\').remove()" style="margin-top:12px;width:100%;padding:12px;background:#9e9e9e;color:#fff;border:none;border-radius:12px;font-size:14px;cursor:pointer">關閉</button></div>';document.body.appendChild(m);m.addEventListener("click",e=>{if(e.target===m)m.remove();});}
 setTimeout(()=>{const sp=document.getElementById("animal-spot"),bg=document.getElementById("animal-big-icon");if(sp&&bg){sp.appendChild(bg);}if(typeof renderDeco==="function")renderDeco();},1200);
+
+// ===== 活體小動物走動系統 =====
+const Walker={x:50,y:70,tx:50,ty:70,speed:0.25,moving:false,paused:false,el:null,
+init(){this.el=document.getElementById("animal-walker");if(!this.el){setTimeout(()=>this.init(),1000);return;}this.pickTarget();setInterval(()=>this.tick(),50);},
+pickTarget(){this.tx=15+Math.random()*70;this.ty=55+Math.random()*30;},
+tick(){if(this.paused||!this.el)return;
+try{if(typeof isFainted==="function"&&typeof getAnimal==="function"&&isFainted(getAnimal().audioKey))return;}catch(e){}
+const dx=this.tx-this.x,dy=this.ty-this.y,dist=Math.hypot(dx,dy);
+if(dist<2){this.moving=false;this.el.classList.remove("walking");if(Math.random()<0.03)this.pickTarget();return;}
+this.moving=true;this.el.classList.add("walking");
+this.x+=dx/dist*this.speed;this.y+=dy/dist*this.speed;
+this.el.style.left=this.x+"%";this.el.style.top=this.y+"%";
+if(dx>0.5)this.el.classList.remove("facing-left");else if(dx<-0.5)this.el.classList.add("facing-left");},
+pause(){this.paused=true;if(this.el)this.el.classList.remove("walking");},
+resume(){this.paused=false;},
+happy(){if(!this.el)return;this.el.classList.remove("happy");void this.el.offsetWidth;this.el.classList.add("happy");setTimeout(()=>{if(this.el)this.el.classList.remove("happy")},600);}
+};
+setTimeout(()=>Walker.init(),2000);

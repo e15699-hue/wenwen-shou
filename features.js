@@ -780,3 +780,561 @@ function regenErrorQuestion(q) {
   return q;
 }
 
+
+/* ===== 放置獎勵系統（微放置養成） ===== */
+(function(){
+var st=document.createElement("style");
+st.textContent="@keyframes idleFloat{0%{opacity:0;transform:translate(-50%,-30%)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-130%)}}"
++"@keyframes discoveryBounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-10px)}}"
++"#discovery-bubble{position:absolute;left:50%;top:-14px;transform:translateX(-50%);font-size:34px;z-index:60;cursor:pointer;animation:discoveryBounce 1s ease infinite;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));}"
++"#income-badge{position:absolute;top:8px;right:8px;z-index:55;padding:8px 14px;font-size:15px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#ffa726,#fb8c00);border:none;border-radius:20px;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,.3);animation:discoveryBounce 1.2s ease infinite;}";
+document.head.appendChild(st);
+})();
+
+/* 共用：發放點數（更新顯示+HUD+今日統計） */
+function grantPoints(n){
+if(!n||n<=0)return;
+kidPoints+=n;
+lsSet(LS_KEYS.points,kidPoints);
+var kp=document.getElementById("kid-points");
+if(kp)kp.textContent=kidPoints;
+if(typeof updatePointsDisplay==="function")updatePointsDisplay();
+if(typeof updateRpgHud==="function")updateRpgHud();
+if(typeof addTodayPoints==="function")addTodayPoints(n);
+}
+
+/* 農場飄字 */
+function floatText(txt,xPct,yPct){
+var farm=document.getElementById("farm-scene");
+if(!farm)return;
+var el=document.createElement("div");
+el.textContent=txt;
+el.style.cssText="position:absolute;left:"+(xPct||50)+"%;top:"+(yPct||40)+"%;font-size:20px;font-weight:bold;color:#ffd54f;text-shadow:0 2px 4px rgba(0,0,0,.55);z-index:50;pointer-events:none;animation:idleFloat 2s ease forwards;";
+farm.appendChild(el);
+setTimeout(function(){el.remove();},2100);
+}
+
+/* ---------- 1. 散步發現 ---------- */
+function getDiscovery(){try{return JSON.parse(localStorage.getItem("wws_discovery")||"{}");}catch(e){return{};}}
+function saveDiscovery(d){try{localStorage.setItem("wws_discovery",JSON.stringify(d));}catch(e){}}
+function checkWalkDiscovery(){
+var d=getDiscovery(),now=Date.now();
+if(now-(d.last||0)<30*60000)return;                 /* 30 分鐘冷卻 */
+if(document.getElementById("discovery-bubble"))return; /* 已有未領取 */
+if(Math.random()>0.35)return;                          /* 35% 機率 */
+d.last=now;saveDiscovery(d);
+showDiscoveryBubble();
+}
+function showDiscoveryBubble(){
+var walker=document.getElementById("animal-walker");
+if(!walker||document.getElementById("discovery-bubble"))return;
+var b=document.createElement("div");
+b.id="discovery-bubble";
+b.textContent="❗";
+b.title="小動物發現了東西！點我領取";
+b.onclick=function(e){e.stopPropagation();claimDiscovery();};
+walker.appendChild(b);
+}
+function claimDiscovery(){
+var b=document.getElementById("discovery-bubble");
+if(b)b.remove();
+var a=(typeof getAnimal==="function")?getAnimal():null;
+var key=a?a.audioKey:"cat";
+var roll=Math.random(),msg;
+if(roll<0.5){
+var pts=5+Math.floor(Math.random()*11); /* 5-15 點 */
+grantPoints(pts);
+msg="🎁 散步發現小禮物！\n獲得 "+pts+" 點！";
+}else if(roll<0.8){
+if(typeof addFood==="function")addFood("feed",1);
+if(typeof renderFeedZone==="function")renderFeedZone();
+msg="🎁 散步發現小禮物！\n獲得 🍚 普通飼料 x1！";
+}else{
+if(typeof addMood==="function")addMood(key,10);
+msg="🎁 發現漂亮的小花！\n小動物心情 +10 😊";
+}
+floatText("🎁",50,30);
+markDailyIdleDone();
+setTimeout(function(){alert(msg);},300);
+}
+
+/* ---------- 2. 裝飾產出 ---------- */
+const DECO_INCOME={
+well:{points:5,label:"💧 水井產出"},
+appletree:{points:8,label:"🍎 蘋果樹產出"},
+fountain:{points:10,label:"⛲ 噴泉產出"},
+castle:{points:20,label:"🏰 城堡稅收"}
+};
+function getDecoIncome(){try{return JSON.parse(localStorage.getItem("wws_decoincome")||"{}");}catch(e){return{};}}
+function saveDecoIncome(d){try{localStorage.setItem("wws_decoincome",JSON.stringify(d));}catch(e){}}
+function checkDecoIncome(){
+var st=getDecoIncome(),now=Date.now();
+if(now-(st.last||0)<3600000)return; /* 每小時結算一次 */
+var placed=(typeof getDeco==="function")?getDeco():[];
+var total=0,labels=[];
+placed.forEach(function(p){
+var inc=DECO_INCOME[p.id];
+if(inc){total+=inc.points;labels.push(inc.label+" +"+inc.points);}
+});
+st.last=now;
+if(total>0){
+st.pending=(st.pending||0)+total;
+st.log=labels;
+floatText("💰 待領取 +"+total,50,35);
+}
+saveDecoIncome(st);
+renderIncomeBadge();
+}
+function renderIncomeBadge(){
+var farm=document.getElementById("farm-scene");
+if(!farm)return;
+var old=document.getElementById("income-badge");
+if(old)old.remove();
+var pending=getDecoIncome().pending||0;
+if(pending<=0)return;
+var b=document.createElement("button");
+b.id="income-badge";
+b.textContent="💰 +"+pending+" 領取";
+b.onclick=claimDecoIncome;
+farm.appendChild(b);
+}
+function claimDecoIncome(){
+var st=getDecoIncome(),pending=st.pending||0;
+if(pending<=0){alert("目前沒有待領取的產出喔！\n多放水井、蘋果樹、噴泉、城堡可以自動賺點數 🏡");return;}
+grantPoints(pending);
+st.pending=0;saveDecoIncome(st);
+renderIncomeBadge();
+markDailyIdleDone();
+var log=(st.log||[]).join("\n");
+setTimeout(function(){alert("💰 領取裝飾產出！\n"+log+"\n共獲得 "+pending+" 點！");},300);
+}
+
+/* ---------- 3. 離線獎勵 ---------- */
+function touchLastSeen(){try{localStorage.setItem("wws_lastseen",String(Date.now()));}catch(e){}}
+function checkOfflineReward(){
+var last=0;
+try{last=parseInt(localStorage.getItem("wws_lastseen")||"0",10)||0;}catch(e){}
+touchLastSeen();
+if(!last)return; /* 首次開啟不發 */
+var hours=Math.min(8,Math.floor((Date.now()-last)/3600000));
+if(hours<1)return;
+var pts=hours*10,xp=hours*5;
+grantPoints(pts);
+var a=(typeof getAnimal==="function")?getAnimal():null;
+if(a&&typeof addAnimalXP==="function")addAnimalXP(a.audioKey,xp);
+setTimeout(function(){
+alert("🎁 離線獎勵！\n小動物在你離開的 "+hours+" 小時裡乖乖長大～\n獲得 "+pts+" 點、"+xp+" 經驗！");
+},1500);
+}
+
+/* ---------- 4. 每日任務擴充 ---------- */
+const DAILY_TASKS=[
+{id:"boss",name:"⚔️ 打敗 1 隻魔王",reward:30},
+{id:"friend",name:"👥 拜訪 1 位好友",reward:15},
+{id:"idle",name:"🎁 領取 1 次放置獎勵",reward:10}
+];
+function getDailyTasks(){
+var d={};
+try{d=JSON.parse(localStorage.getItem("wws_dailytasks")||"{}");}catch(e){}
+if(d.date!==todayStr())d={date:todayStr(),done:{}};
+return d;
+}
+function saveDailyTasks(d){try{localStorage.setItem("wws_dailytasks",JSON.stringify(d));}catch(e){}}
+function markDailyTask(id){
+var d=getDailyTasks();
+if(d.done[id])return;
+d.done[id]=true;saveDailyTasks(d);
+var task=null;
+DAILY_TASKS.forEach(function(t){if(t.id===id)task=t;});
+if(task){
+grantPoints(task.reward);
+setTimeout(function(){alert("📅 每日任務完成！\n"+task.name+"\n獲得 "+task.reward+" 點！");},600);
+}
+renderDailyTasks();
+}
+/* 對外掛鉤：魔王系統打敗魔王時呼叫 markDailyBossDone() */
+function markDailyBossDone(){markDailyTask("boss");}
+function markDailyFriendDone(){markDailyTask("friend");}
+function markDailyIdleDone(){markDailyTask("idle");}
+function renderDailyTasks(){
+var d=getDailyTasks();
+var list=document.getElementById("daily-task-list");
+if(!list){
+var container=document.getElementById("daily-task");
+if(!container)return;
+list=document.createElement("div");
+list.id="daily-task-list";
+list.style.cssText="margin-top:8px;display:flex;flex-direction:column;gap:6px;";
+container.appendChild(list);
+}
+var doneCount=0;
+var html="";
+DAILY_TASKS.forEach(function(t){
+var done=!!d.done[t.id];
+if(done)doneCount++;
+html+='<div style="display:flex;justify-content:space-between;align-items:center;background:'+(done?"#e8f5e9":"#fff")+';border-radius:10px;padding:8px 12px;font-size:14px;">'
++'<span>'+(done?"✅":"⬜")+" "+t.name+'</span>'
++'<span style="color:#b8860b;font-weight:bold">+'+t.reward+'點</span></div>';
+});
+list.innerHTML=html;
+var title=document.querySelector("#daily-task .dt-title");
+if(title)title.textContent="📅 今日任務（"+doneCount+"/"+DAILY_TASKS.length+"）";
+}
+
+/* 好友拜訪掛鉤：拜訪即算完成每日好友任務 */
+(function hookFriendDaily(){
+if(typeof visitFriend==="function"&&!visitFriend._idleHooked){
+var _orig=visitFriend;
+var wrapped=function(fid){try{markDailyFriendDone();}catch(e){}return _orig.apply(this,arguments);};
+wrapped._idleHooked=true;
+visitFriend=wrapped;
+}
+})();
+
+/* ---------- 初始化 ---------- */
+function initIdleSystem(){
+checkOfflineReward();   /* 離線獎勵（只在載入時算一次） */
+checkDecoIncome();
+renderIncomeBadge();
+renderDailyTasks();
+checkWalkDiscovery();
+setInterval(function(){
+checkWalkDiscovery();
+checkDecoIncome();
+touchLastSeen();
+},60000); /* 每分鐘檢查 */
+}
+if(document.readyState==="loading"){
+document.addEventListener("DOMContentLoaded",function(){setTimeout(initIdleSystem,2000);});
+}else{
+setTimeout(initIdleSystem,2000);
+}
+
+/* ===== 魔王戰鬥系統 ===== */
+const BOSSES = [
+  {id:'slime', name:'史萊姆王', icon:'🟢', img:'images/boss/boss_slime.webp', hp:100, reward:{points:50, xp:30}},
+  {id:'wolf', name:'暗黑狼王', icon:'🐺', img:'images/boss/boss_wolf.webp', hp:300, reward:{points:150, xp:80}},
+  {id:'wizard', name:'混沌法師', icon:'🧙', img:'images/boss/boss_wizard.webp', hp:600, reward:{points:300, xp:150}},
+  {id:'dragon', name:'深淵魔龍', icon:'🐉', img:'images/boss/boss_dragon.webp', hp:1200, reward:{points:600, xp:300}},
+  {id:'demon', name:'終極魔王', icon:'👹', img:'images/boss/boss_demon.webp', hp:2500, reward:{points:1200, xp:600}},
+];
+const BOSS_GRADE_DMG = {"低年級":10, "中年級":25, "高年級":50};
+const BOSS_GRADE_LABEL = {"低年級":"🌱 低年級 ×1", "中年級":"🌿 中年級 ×2.5", "高年級":"🌳 高年級 ×5"};
+let bossBattle = null;
+let bossSelGrade = "低年級";
+let bossSelId = "slime";
+
+function getBossWins(){ try{ return JSON.parse(localStorage.getItem("wws_boss_wins")||"{}"); }catch(e){ return {}; } }
+function saveBossWins(d){ localStorage.setItem("wws_boss_wins", JSON.stringify(d)); }
+
+function bossImgHtml(boss, size){
+  const s = size || 120;
+  return '<span style="position:relative;display:inline-block;width:'+s+'px;height:'+s+'px;">'
+    + '<span style="font-size:'+Math.round(s*0.75)+'px;line-height:'+s+'px;">'+boss.icon+'</span>'
+    + '<img src="'+boss.img+'" alt="'+boss.name+'" style="position:absolute;top:0;left:0;width:'+s+'px;height:'+s+'px;object-fit:contain;" onerror="this.remove();">'
+    + '</span>';
+}
+
+function openBossBattle(){
+  const old = document.getElementById("boss-select-modal");
+  if (old) old.remove();
+  const wins = getBossWins();
+  const cards = BOSSES.map(function(b){
+    const w = wins[b.id] || 0;
+    const sel = bossSelId === b.id;
+    return '<div onclick="bossSelId=\''+b.id+'\';openBossBattle();" style="background:'+(sel?'#fff3e0':'#fff')+';border:'+(sel?'3px solid #ff9800':'2px solid #e0e0e0')+';border-radius:16px;padding:12px;text-align:center;cursor:pointer;position:relative;">'
+      + (w>0?'<div style="position:absolute;top:6px;right:6px;background:#4caf50;color:#fff;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:10px;">🏆×'+w+'</div>':'')
+      + '<div>'+bossImgHtml(b, 72)+'</div>'
+      + '<div style="font-size:15px;font-weight:bold;margin-top:4px;">'+b.name+'</div>'
+      + '<div style="font-size:12px;color:#c62828;">❤️ '+b.hp+'</div>'
+      + '<div style="font-size:12px;color:#f57f17;">🪙'+b.reward.points+' ⭐'+b.reward.xp+'</div>'
+      + '</div>';
+  }).join("");
+  const grades = Object.keys(BOSS_GRADE_LABEL).map(function(g){
+    const sel = bossSelGrade === g;
+    return '<button onclick="bossSelGrade=\''+g+'\';openBossBattle();" style="flex:1;padding:10px 4px;font-size:14px;font-weight:bold;border-radius:12px;border:'+(sel?'3px solid #4caf50':'2px solid #e0e0e0')+';background:'+(sel?'#e8f5e9':'#fff')+';cursor:pointer;">'+BOSS_GRADE_LABEL[g]+'</button>';
+  }).join("");
+  const m = document.createElement("div");
+  m.id = "boss-select-modal";
+  m.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.65);z-index:10002;display:flex;justify-content:center;align-items:center;padding:16px;";
+  m.innerHTML = '<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto;">'
+    + '<h2 style="margin:0 0 4px;font-size:22px;text-align:center;">👹 魔王戰</h2>'
+    + '<p style="text-align:center;font-size:13px;color:#666;margin:0 0 12px;">答對打擊魔王！答錯會被反擊！難度越高傷害越高！</p>'
+    + '<div style="font-size:14px;font-weight:bold;margin-bottom:6px;">1️⃣ 選擇難度（傷害倍率）</div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:14px;">'+grades+'</div>'
+    + '<div style="font-size:14px;font-weight:bold;margin-bottom:6px;">2️⃣ 選擇魔王</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">'+cards+'</div>'
+    + '<button onclick="startBossBattle()" style="width:100%;padding:14px;font-size:18px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#ef5350,#c62828);border:none;border-radius:16px;cursor:pointer;box-shadow:0 4px 12px rgba(239,83,80,.4);">⚔️ 開戰！</button>'
+    + '<button onclick="document.getElementById(\'boss-select-modal\').remove();" style="margin-top:10px;width:100%;padding:10px;background:#9e9e9e;color:#fff;border:none;border-radius:12px;font-size:14px;cursor:pointer;">關閉</button>'
+    + '</div>';
+  document.body.appendChild(m);
+  m.addEventListener("click", function(e){ if(e.target===m) m.remove(); });
+}
+
+function startBossBattle(){
+  const sel = document.getElementById("boss-select-modal");
+  if (sel) sel.remove();
+  const boss = BOSSES.find(function(b){ return b.id===bossSelId; }) || BOSSES[0];
+  bossBattle = {
+    boss: boss, grade: bossSelGrade,
+    bossHp: boss.hp, maxBossHp: boss.hp,
+    playerHp: 100, maxPlayerHp: 100,
+    askedIds: [], over: false, q: null
+  };
+  quizStreak = 0;
+  renderBossArena();
+  nextBossQuestion();
+}
+
+function renderBossArena(){
+  const old = document.getElementById("boss-arena-modal");
+  if (old) old.remove();
+  const b = bossBattle.boss;
+  const a = getAnimal();
+  const m = document.createElement("div");
+  m.id = "boss-arena-modal";
+  m.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,#1a1a2e 0%,#3d0c0c 100%);z-index:10002;display:flex;justify-content:center;align-items:flex-start;padding:12px;overflow-y:auto;";
+  m.innerHTML = '<style>'
+    + '@keyframes bossShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-14px) rotate(-4deg)}40%{transform:translateX(12px) rotate(3deg)}60%{transform:translateX(-8px)}80%{transform:translateX(6px)}}'
+    + '@keyframes playerShake{0%,100%{transform:translateX(0)}25%{transform:translateX(10px)}50%{transform:translateX(-10px)}75%{transform:translateX(6px)}}'
+    + '@keyframes dmgFloat{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-70px) scale(1.3)}}'
+    + '@keyframes bossIdle{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}'
+    + '.boss-shake{animation:bossShake .45s ease;}'
+    + '.player-shake{animation:playerShake .45s ease;}'
+    + '.dmg-num{position:absolute;font-weight:bold;pointer-events:none;animation:dmgFloat 1.1s ease forwards;z-index:50;text-shadow:0 2px 4px rgba(0,0,0,.5);}'
+    + '</style>'
+    + '<div id="boss-arena-inner" style="width:100%;max-width:480px;position:relative;">'
+    + '<div style="background:rgba(0,0,0,.45);border:2px solid #c62828;border-radius:16px;padding:12px;margin-bottom:10px;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;color:#fff;"><span style="font-size:17px;font-weight:bold;">'+b.icon+' '+b.name+'</span><span id="boss-hp-text" style="font-size:14px;font-weight:bold;">'+b.hp+'/'+b.hp+'</span></div>'
+    + '<div style="height:16px;background:#330000;border-radius:8px;margin-top:6px;overflow:hidden;border:1px solid #7f0000;"><div id="boss-hp-fill" style="height:100%;width:100%;background:linear-gradient(90deg,#ef5350,#ff7961);border-radius:8px;transition:width .4s;"></div></div>'
+    + '</div>'
+    + '<div id="boss-sprite-wrap" style="text-align:center;position:relative;min-height:150px;animation:bossIdle 2.5s ease-in-out infinite;">'
+    + '<div id="boss-sprite">'+bossImgHtml(b, 140)+'</div>'
+    + '<div id="boss-dmg-layer" style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;"></div>'
+    + '</div>'
+    + '<div id="boss-player-bar" style="background:rgba(0,0,0,.45);border:2px solid #2e7d32;border-radius:16px;padding:10px 12px;margin:10px 0;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;color:#fff;"><span style="font-size:14px;font-weight:bold;">'+a.icon+' '+getEvolutionInfo(a.audioKey).name+' <span style="font-size:12px;color:#ffd54f;">'+BOSS_GRADE_LABEL[bossBattle.grade]+'</span></span><span style="font-size:13px;">🔥連擊 <b id="boss-streak">x0</b></span></div>'
+    + '<div style="height:12px;background:#0a330a;border-radius:6px;margin-top:6px;overflow:hidden;"><div id="player-hp-fill" style="height:100%;width:100%;background:linear-gradient(90deg,#66bb6a,#9ccc65);border-radius:6px;transition:width .4s;"></div></div>'
+    + '<div id="player-hp-text" style="font-size:12px;color:#a5d6a7;text-align:right;">100/100</div>'
+    + '</div>'
+    + '<div style="background:#fff;border-radius:16px;padding:16px;">'
+    + '<div id="boss-q-text" style="font-size:19px;font-weight:bold;line-height:1.7;text-align:center;min-height:60px;">載入題目中…</div>'
+    + '<div id="boss-q-opts" style="display:flex;flex-direction:column;gap:10px;margin-top:12px;"></div>'
+    + '<div id="boss-q-fb" style="text-align:center;font-size:16px;font-weight:bold;min-height:28px;margin-top:8px;"></div>'
+    + '</div>'
+    + '<button onclick="bossEscape()" style="margin-top:10px;width:100%;padding:10px;background:rgba(255,255,255,.15);color:#fff;border:2px solid rgba(255,255,255,.4);border-radius:12px;font-size:14px;font-weight:bold;cursor:pointer;">🏳️ 逃跑</button>'
+    + '</div>';
+  document.body.appendChild(m);
+}
+
+function updateBossBars(){
+  if(!bossBattle) return;
+  const bf = document.getElementById("boss-hp-fill");
+  const bt = document.getElementById("boss-hp-text");
+  if(bf) bf.style.width = Math.max(0, bossBattle.bossHp / bossBattle.maxBossHp * 100) + "%";
+  if(bt) bt.textContent = Math.max(0, bossBattle.bossHp) + "/" + bossBattle.maxBossHp;
+  const pf = document.getElementById("player-hp-fill");
+  const pt = document.getElementById("player-hp-text");
+  if(pf) pf.style.width = Math.max(0, bossBattle.playerHp / bossBattle.maxPlayerHp * 100) + "%";
+  if(pt) pt.textContent = Math.max(0, bossBattle.playerHp) + "/" + bossBattle.maxPlayerHp;
+  const st = document.getElementById("boss-streak");
+  if(st) st.textContent = "x" + quizStreak;
+}
+
+function bossDamageNum(text, color, isPlayer){
+  const layer = document.getElementById("boss-dmg-layer");
+  if(!layer) return;
+  const d = document.createElement("div");
+  d.className = "dmg-num";
+  d.style.cssText += "left:"+(20+Math.random()*60)+"%;top:30%;font-size:"+(isPlayer?22:34)+"px;color:"+color+";";
+  d.textContent = text;
+  layer.appendChild(d);
+  setTimeout(function(){ d.remove(); }, 1150);
+}
+
+async function nextBossQuestion(){
+  if(!bossBattle || bossBattle.over) return;
+  const qt = document.getElementById("boss-q-text");
+  const qo = document.getElementById("boss-q-opts");
+  const qf = document.getElementById("boss-q-fb");
+  if(qf) qf.textContent = "";
+  if(qo) qo.innerHTML = "";
+  if(qt) qt.textContent = getAnimal().icon + " 正在想題目…";
+  try{
+    const bank = await loadBank(bossBattle.grade);
+    let q = bank ? pickFromBank(bossBattle.grade, bossBattle.askedIds) : null;
+    if(!q){ if(qt) qt.textContent = "題庫載入失敗，請稍後再試"; return; }
+    if(q.id) bossBattle.askedIds.push(q.id);
+    bossBattle.q = q;
+    if(qt) qt.textContent = q.question;
+    if(qo){
+      qo.innerHTML = "";
+      const opts = q.options || [];
+      if(!opts.length){
+        qo.innerHTML = '<p style="text-align:center;color:#888;">這題沒有選項，請回農場用拍照模式作答</p>';
+        return;
+      }
+      opts.forEach(function(opt){
+        const b = document.createElement("button");
+        b.style.cssText = "font-size:20px;padding:14px;border-radius:14px;border:none;background:linear-gradient(135deg,#7e57c2,#5c6bc0);color:#fff;font-weight:bold;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,.2);";
+        if(opt==="⭕"||opt==="❌") b.style.fontSize = "34px";
+        b.textContent = opt;
+        b.onclick = function(){ submitBossAnswer(opt, b); };
+        qo.appendChild(b);
+      });
+    }
+  }catch(e){
+    if(qt) qt.textContent = "題目載入失敗，請重試";
+  }
+}
+
+function submitBossAnswer(opt, btn){
+  if(!bossBattle || bossBattle.over || !bossBattle.q) return;
+  const q = bossBattle.q;
+  const qf = document.getElementById("boss-q-fb");
+  document.querySelectorAll("#boss-q-opts button").forEach(function(b){ b.disabled = true; });
+  const correct = normAns(String(opt).trim()) === normAns(q.answer);
+  const a = getAnimal();
+  if(correct){
+    quizStreak++;
+    if(typeof checkAchv === "function") checkAchv("streak", quizStreak);
+    if(typeof incStat === "function") incStat("correct", 1);
+    if(typeof addMood === "function") addMood(a.audioKey, 3);
+    const base = BOSS_GRADE_DMG[bossBattle.grade];
+    const isCrit = Math.random() < 0.15;
+    let dmg = Math.round(base * (1 + quizStreak * 0.1) * (isCrit ? 2 : 1));
+    let skillMsg = "";
+    try{
+      const skill = triggerCorrectSkill();
+      if(skill.bonus === -1){ dmg *= 2; skillMsg = " " + skill.msg; }
+      else if(skill.bonus > 0){ dmg += skill.bonus; skillMsg = " " + skill.msg; }
+    }catch(e){}
+    bossBattle.bossHp -= dmg;
+    updateBossBars();
+    const sp = document.getElementById("boss-sprite");
+    if(sp){ sp.classList.remove("boss-shake"); void sp.offsetWidth; sp.classList.add("boss-shake"); }
+    bossDamageNum((isCrit?"💥 ":"")+"-"+dmg, isCrit?"#ffeb3b":"#ffffff", false);
+    if(qf){ qf.style.color = "#2e7d32"; qf.textContent = "⚔️ 命中！"+(isCrit?" 暴擊！":"")+skillMsg; }
+    if(btn){ btn.style.background = "linear-gradient(135deg,#66bb6a,#43a047)"; }
+    try{ if(typeof playAnimalSound==="function") playAnimalSound("praise"+(1+Math.floor(Math.random()*3)), a.praise[Math.floor(Math.random()*a.praise.length)]); }catch(e){}
+    setTimeout(function(){
+      if(!bossBattle || bossBattle.over) return;
+      if(bossBattle.bossHp <= 0){ bossVictory(); }
+      else { nextBossQuestion(); }
+    }, 1100);
+  }else{
+    let keepMsg = "";
+    try{
+      const skill = triggerWrongSkill();
+      if(skill.keep){ keepMsg = " " + skill.msg; } else { quizStreak = 0; }
+    }catch(e){ quizStreak = 0; }
+    if(typeof addMood === "function") addMood(a.audioKey, -5);
+    const counter = 10 + Math.floor(Math.random()*11);
+    bossBattle.playerHp -= counter;
+    updateBossBars();
+    const pb = document.getElementById("boss-player-bar");
+    if(pb){ pb.classList.remove("player-shake"); void pb.offsetWidth; pb.classList.add("player-shake"); }
+    const sp = document.getElementById("boss-sprite");
+    if(sp){ sp.style.animation = "none"; }
+    bossDamageNum("-"+counter, "#ff5252", true);
+    if(qf){ qf.style.color = "#c62828"; qf.textContent = "💢 魔王反擊！-"+counter+" HP"+keepMsg; }
+    if(btn){ btn.style.background = "linear-gradient(135deg,#9e9e9e,#757575)"; }
+    try{ if(typeof playAnimalSound==="function") playAnimalSound("encourage", a.encourage); }catch(e){}
+    setTimeout(function(){
+      if(sp) sp.style.animation = "";
+      if(!bossBattle || bossBattle.over) return;
+      if(bossBattle.playerHp <= 0){ bossDefeat(); }
+      else { nextBossQuestion(); }
+    }, 1300);
+  }
+  updateBossBars();
+}
+
+function bossVictory(){
+  if(!bossBattle) return;
+  bossBattle.over = true;
+  const b = bossBattle.boss;
+  const wins = getBossWins();
+  const prev = wins[b.id] || 0;
+  const isFirst = prev === 0;
+  wins[b.id] = prev + 1;
+  saveBossWins(wins);
+  const today = new Date().toISOString().slice(0,10);
+  const dk = "wws_boss_daily";
+  const dailyFirst = localStorage.getItem(dk) !== today;
+  if(dailyFirst) localStorage.setItem(dk, today);
+  let pts = b.reward.points, xp = b.reward.xp;
+  const bonusLines = [];
+  if(isFirst){ pts = Math.round(pts*1.5); xp = Math.round(xp*1.5); bonusLines.push("🎉 首次擊敗 +50%！"); }
+  if(dailyFirst){ pts = Math.round(pts*1.5); xp = Math.round(xp*1.5); bonusLines.push("☀️ 每日首勝 ×1.5！"); }
+  const sat = (typeof getSatiety==="function") ? getSatiety(getAnimal().audioKey) : 100;
+  if(sat < 20){ xp = Math.ceil(xp/2); bonusLines.push("😢 肚子餓，經驗減半"); }
+  addPoints(pts);
+  addAnimalXP(getAnimal().audioKey, xp);
+  if(typeof addMood==="function") addMood(getAnimal().audioKey, 10);
+  try{ if(typeof launchConfetti==="function") launchConfetti(); }catch(e){}
+  const arena = document.getElementById("boss-arena-modal");
+  if(arena) arena.remove();
+  const m = document.createElement("div");
+  m.id = "boss-result-modal";
+  m.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:10003;display:flex;justify-content:center;align-items:center;padding:16px;";
+  m.innerHTML = '<div style="background:#fff;border-radius:24px;padding:28px;max-width:360px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.4);">'
+    + '<div style="font-size:56px;">🏆</div>'
+    + '<h2 style="margin:8px 0;color:#f57f17;">勝利！</h2>'
+    + '<p style="font-size:16px;">打敗了 <b>'+b.icon+' '+b.name+'</b>！</p>'
+    + (bonusLines.length?'<div style="background:#fff8e1;border-radius:12px;padding:8px;margin:8px 0;font-size:14px;color:#e65100;">'+bonusLines.join("<br>")+'</div>':'')
+    + '<div style="display:flex;gap:10px;justify-content:center;margin:12px 0;">'
+    + '<div style="background:#fff3e0;border-radius:12px;padding:10px 18px;"><div style="font-size:13px;color:#999;">獲得點數</div><div style="font-size:22px;font-weight:bold;color:#f57f17;">🪙 '+pts+'</div></div>'
+    + '<div style="background:#e8f5e9;border-radius:12px;padding:10px 18px;"><div style="font-size:13px;color:#999;">獲得經驗</div><div style="font-size:22px;font-weight:bold;color:#2e7d32;">⭐ '+xp+'</div></div>'
+    + '</div>'
+    + '<div style="font-size:13px;color:#999;">累計擊敗 '+b.name+' ×'+(prev+1)+'</div>'
+    + '<button onclick="document.getElementById(\'boss-result-modal\').remove();openBossBattle();" style="margin-top:14px;width:100%;padding:14px;font-size:16px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#ef5350,#c62828);border:none;border-radius:16px;cursor:pointer;">再打一場！</button>'
+    + '<button onclick="document.getElementById(\'boss-result-modal\').remove();" style="margin-top:8px;width:100%;padding:10px;background:#9e9e9e;color:#fff;border:none;border-radius:12px;font-size:14px;cursor:pointer;">回農場休息</button>'
+    + '</div>';
+  document.body.appendChild(m);
+}
+
+function bossDefeat(){
+  if(!bossBattle) return;
+  bossBattle.over = true;
+  const b = bossBattle.boss;
+  const arena = document.getElementById("boss-arena-modal");
+  if(arena) arena.remove();
+  const m = document.createElement("div");
+  m.id = "boss-result-modal";
+  m.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:10003;display:flex;justify-content:center;align-items:center;padding:16px;";
+  m.innerHTML = '<div style="background:#fff;border-radius:24px;padding:28px;max-width:340px;width:100%;text-align:center;">'
+    + '<div style="font-size:56px;">😵</div>'
+    + '<h2 style="margin:8px 0;color:#666;">被打敗了…</h2>'
+    + '<p style="font-size:15px;color:#666;">'+b.icon+' '+b.name+' 太強了！<br>多練習、升級小動物再來挑戰吧！</p>'
+    + '<button onclick="document.getElementById(\'boss-result-modal\').remove();startBossBattle();" style="margin-top:14px;width:100%;padding:14px;font-size:16px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#66bb6a,#43a047);border:none;border-radius:16px;cursor:pointer;">💪 再試一次</button>'
+    + '<button onclick="document.getElementById(\'boss-result-modal\').remove();openBossBattle();" style="margin-top:8px;width:100%;padding:10px;background:#78909c;color:#fff;border:none;border-radius:12px;font-size:14px;cursor:pointer;">換個魔王 / 難度</button>'
+    + '<button onclick="document.getElementById(\'boss-result-modal\').remove();" style="margin-top:8px;width:100%;padding:10px;background:#e0e0e0;color:#666;border:none;border-radius:12px;font-size:14px;cursor:pointer;">回農場</button>'
+    + '</div>';
+  document.body.appendChild(m);
+}
+
+function bossEscape(){
+  if(!bossBattle) return;
+  if(confirm("確定要逃跑嗎？魔王血量會重置喔！")){
+    bossBattle.over = true;
+    const arena = document.getElementById("boss-arena-modal");
+    if(arena) arena.remove();
+  }
+}
+
+/* 魔王戰按鈕：加到農場按鈕列 */
+setTimeout(function(){
+  try{
+    const bar = document.querySelector(".farm-ui-bar");
+    if(bar && !document.getElementById("boss-battle-btn")){
+      const b = document.createElement("button");
+      b.id = "boss-battle-btn";
+      b.className = "farm-btn";
+      b.style.background = "linear-gradient(135deg,#ef5350,#b71c1c)";
+      b.textContent = "👹 魔王戰";
+      b.onclick = openBossBattle;
+      bar.appendChild(b);
+    }
+  }catch(e){}
+}, 1800);

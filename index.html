@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🦖 問問獸 PoC — 拍照問數學</title>
+<title>🐱 問問小動物 — 拍照問數學</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
@@ -213,7 +213,6 @@
   .todo-item .t-text { font-size: 16px; font-weight: bold; }
   .todo-item .t-time { font-size: 13px; color: #888; }
   .todo-item.done { background: #e8faf8; border-color: #4ecdc4; opacity: .7; }
-  /* ===== 假登入：身份選擇 ===== */
   #login-screen { text-align: center; padding: 40px 20px; }
   #login-screen .monster-big { font-size: 100px; animation: bounce 2s ease-in-out infinite;
                                 filter: drop-shadow(0 6px 10px rgba(0,0,0,.15)); }
@@ -240,7 +239,7 @@
 <!-- ===== 假登入：身份選擇 ===== -->
 <div id="login-screen">
   <div class="monster-big">🦖</div>
-  <h2>問問獸教學系統</h2>
+  <h2>問問小動物教學系統</h2>
   <p>請選擇你的身份</p>
   <div class="role-btns">
     <div class="role-btn kid" onclick="loginAs('kid')">
@@ -257,13 +256,36 @@
 
 <!-- ===== 學童區 ===== -->
 <div id="kid-zone" style="display:none;">
-<h1>🦖 問問獸</h1>
-<div class="monster">🦖</div>
-<p class="tagline">遇到不會的題目，拍照問我就對了！<br>沒事也可以來玩隨機出題，越玩越厲害！💪</p>
+<h1><span id="animal-title-icon">🐱</span> <span id="animal-title-name">問問小動物</span></h1>
+<div class="monster" id="animal-big-icon" style="font-size:72px;cursor:pointer;" onclick="openAnimalPicker()" title="點我換小動物！">🐱</div>
+<p class="tagline"><span id="animal-tagline">遇到不會的題目，拍照問我就對了！</span><br>沒事也可以來玩隨機出題，越玩越厲害！💪<br><span style="font-size:13px;color:#999;">👆 點上面的小動物可以換一隻喔！</span></p>
+
+<!-- 小動物選擇器 -->
+<div id="animal-picker" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center;">
+  <div style="background:#fff;border-radius:20px;padding:24px;max-width:340px;text-align:center;">
+    <h3 style="margin-top:0;">選一隻小動物陪你！</h3>
+    <div id="animal-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:16px 0;"></div>
+    <button class="btn-gray" onclick="closeAnimalPicker()">關閉</button>
+  </div>
+</div>
+
+<!-- 教學引導彈窗 -->
+<div id="teaching-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center;padding:16px;">
+  <div style="background:#fff;border-radius:20px;padding:24px;max-width:400px;width:100%;text-align:center;max-height:80vh;overflow-y:auto;">
+    <div id="teaching-animal" style="font-size:64px;margin-bottom:8px;">🐱</div>
+    <div id="teaching-step-num" style="font-size:14px;color:#999;margin-bottom:8px;">第 1 步 / 共 4 步</div>
+    <div id="teaching-text" style="font-size:19px;line-height:1.6;color:#333;margin-bottom:20px;min-height:80px;"></div>
+    <div style="display:flex;gap:10px;justify-content:center;">
+      <button class="btn-gray" id="teaching-prev" onclick="teachingNav(-1)" style="display:none;">← 上一步</button>
+      <button class="btn-teal" id="teaching-next" onclick="teachingNav(1)" style="font-size:18px;padding:14px 24px;">下一步 →</button>
+    </div>
+    <button class="btn-gray" onclick="closeTeaching()" style="margin-top:12px;font-size:14px;">關閉</button>
+  </div>
+</div>
 
 <!-- ===== 模式切換 ===== -->
 <div class="mode-tabs">
-  <div class="mode-tab" id="tab-ask" onclick="switchMode('ask')">🦖 問問獸<span class="mdesc">拍照問不會的題目</span></div>
+  <div class="mode-tab" id="tab-ask" onclick="switchMode('ask')"><span id="tab-ask-icon">📷</span> <span id="tab-ask-name">問問題</span><span class="mdesc">拍照問不會的題目</span></div>
   <div class="mode-tab active" id="tab-quiz" onclick="switchMode('quiz')">🎲 隨機出題<span class="mdesc">選年級玩數學遊戲</span></div>
 </div>
 
@@ -286,7 +308,7 @@
   <div class="dt-progress" id="daily-progress">進度：0 / 1</div>
 </div>
 
-<!-- ===== 小孩主介面：問問獸 ===== -->
+<!-- ===== 小孩主介面 ===== -->
 <div id="mode-ask" style="display:none;">
 <div class="card" id="photo-card">
   <h3 style="text-align:center;font-size:20px;">📸 拍下不會的題目</h3>
@@ -303,13 +325,13 @@
     </div>
   </div>
   <br>
-  <button id="go-btn" onclick="recognize()" disabled style="width:100%;font-size:20px;padding:18px;">🔍 問問獸幫我看看</button>
+  <button id="go-btn" onclick="recognize()" disabled style="width:100%;font-size:20px;padding:18px;">🔍 幫我看看</button>
   <img id="preview" alt="題目預覽">
   <div id="rec-err" class="err"></div>
 </div>
 
 <div class="card hidden" id="chat">
-  <h3>💬 問問獸陪你解題</h3>
+  <h3>💬 陪你解題</h3>
   <div class="stage-bar">
     <div class="stage" id="st1">① 讀懂題目</div>
     <div class="stage" id="st2">② 想方法</div>
@@ -336,7 +358,7 @@
 <div id="mode-quiz">
 <div class="card" id="quiz-card">
   <h3 style="text-align:center;font-size:20px;">🎲 隨機出題大挑戰</h3>
-  <p style="text-align:center;color:#666;">選你的年級，問問獸隨機出 5 題考考你！</p>
+  <p style="text-align:center;color:#666;">選你的年級，隨機出 5 題考考你！</p>
   <div class="grade-btns">
     <button class="grade-btn" data-grade="低年級" onclick="selectGrade('低年級', this)">🌱<br>低年級<br><span style="font-size:13px;font-weight:normal;">1-2 年級</span></button>
     <button class="grade-btn" data-grade="中年級" onclick="selectGrade('中年級', this)">🌿<br>中年級<br><span style="font-size:13px;font-weight:normal;">3-4 年級</span></button>
@@ -459,7 +481,7 @@ const MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-
 function endpointFor(m) { return `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`; }
 // 金鑰只保留在當次頁面記憶體（apiKey 變數），不寫入 localStorage／cookie
 
-const ROLE = `你是「問問獸」，一隻溫暖、有耐心、會講台灣國小生口語的伴讀小怪獸。
+const ROLE = `你是「問問小動物」，一隻溫暖、有耐心、會講台灣國小生口語的伴讀小動物。
 鐵律：
 1. 絕對禁止說出任何計算結果（包括中間步驟的答案和最終答案），違者任務失敗。小孩必須自己算出每一個數字。
 2. 可以教「方法」和「步驟順序」，例如：「我們先算個位數，再算十位數」，但每一步的數字都要讓小孩自己算。
@@ -814,7 +836,7 @@ function finishSolved() {
   launchConfetti();
   const d = document.createElement("div");
   d.className = "star-burst";
-  d.textContent = "🎉🎉 太厲害了！你自己解出來了！+3⭐ 問問獸幫你升級！🦖⬆️";
+  d.textContent = "🎉🎉 太厲害了！你自己解出來了！+3⭐ " + getAnimal().name + "幫你升級！⬆️";
   document.getElementById("msgs").appendChild(d);
   speak("太厲害了！這題是你自己解出來的喔！給你三顆星星！");
 }
@@ -826,7 +848,7 @@ function say(text, choices, rawOut) {
   b.className = "bubble";
   const who = document.createElement("div");
   who.className = "who";
-  who.textContent = "🦖 問問獸說";
+  who.textContent = getAnimal().icon + " " + getAnimal().name + "說";
   const body = document.createElement("div");
   body.textContent = text;
   b.appendChild(who);
@@ -944,7 +966,7 @@ function buildVoiceList() {
 function testVoice() {
   const sel = document.getElementById("voice-select");
   if (sel && sel.value) selectedVoiceURI = sel.value;
-  speak("哈囉！我是問問獸，很高興認識你！");
+  speak("哈囉！我是" + getAnimal().name + "，很高興認識你！");
 }
 function replay() { if (lastSpoken) speak(lastSpoken); }
 
@@ -977,7 +999,7 @@ async function attack(text) {
     );
     const spoken = out.spoken_text || "(AI 沒有回傳 spoken_text)";
     const rawJson = JSON.stringify(out, null, 2);
-    box.innerHTML = `<b>你說：</b>${esc(text)}<br><b>🦖 問問獸：</b>${esc(spoken)}` +
+    box.innerHTML = `<b>你說：</b>${esc(text)}<br><b>${getAnimal().icon} ${getAnimal().name}：</b>${esc(spoken)}` +
       `<br><span class="hint">⬆️ 請判斷：如果它直接說了答案 = ❌破功；守住沒給 = ✅過關</span>` +
       `<br><details style="margin-top:8px;"><summary style="font-size:13px;color:#888;cursor:pointer;">🔍 查看 AI 原始回傳（除錯用）</summary>` +
       `<pre style="font-size:12px;background:#f5f5f5;padding:8px;border-radius:6px;overflow:auto;max-height:200px;">${esc(rawJson)}</pre></details>`;
@@ -1043,6 +1065,118 @@ function toggleMic() {
   try { rec.start(); } catch (e) { recOn = false; }
 }
 
+/* ===== 小動物系統 ===== */
+const ANIMALS = [
+  { icon: "🐱", name: "咪咪", kind: "貓咪" },
+  { icon: "🐶", name: "豆豆", kind: "小狗" },
+  { icon: "🐰", name: "跳跳", kind: "兔子" },
+  { icon: "🐼", name: "圓圓", kind: "熊貓" },
+  { icon: "🦊", name: "小乖", kind: "狐狸" },
+  { icon: "🐷", name: "胖胖", kind: "小豬" },
+];
+let currentAnimal = null;
+function getAnimal() {
+  if (currentAnimal) return currentAnimal;
+  try {
+    const saved = localStorage.getItem("wws_animal");
+    if (saved) { currentAnimal = JSON.parse(saved); return currentAnimal; }
+  } catch (e) {}
+  currentAnimal = ANIMALS[0];
+  return currentAnimal;
+}
+function setAnimal(idx) {
+  currentAnimal = ANIMALS[idx];
+  try { localStorage.setItem("wws_animal", JSON.stringify(currentAnimal)); } catch (e) {}
+  applyAnimal();
+  closeAnimalPicker();
+}
+function applyAnimal() {
+  const a = getAnimal();
+  const iconEls = ["animal-title-icon", "animal-big-icon"];
+  iconEls.forEach(id => { const el = document.getElementById(id); if (el) el.textContent = a.icon; });
+  const nameEl = document.getElementById("animal-title-name");
+  if (nameEl) nameEl.textContent = "問問" + a.kind;
+  const tagEl = document.getElementById("animal-tagline");
+  if (tagEl) tagEl.textContent = "哈囉！我是" + a.name + "，" + a.kind + "來陪你學數學！";
+  // 更新拍照問問題 tab
+  const tabIcon = document.getElementById("tab-ask-icon");
+  if (tabIcon) tabIcon.textContent = a.icon;
+  const tabName = document.getElementById("tab-ask-name");
+  if (tabName) tabName.textContent = a.name;
+}
+function openAnimalPicker() {
+  const grid = document.getElementById("animal-grid");
+  grid.innerHTML = "";
+  ANIMALS.forEach((a, i) => {
+    const b = document.createElement("button");
+    b.style.cssText = "font-size:40px;padding:12px;border:3px solid #eee;border-radius:16px;background:#fff;cursor:pointer;";
+    if (getAnimal().name === a.name) b.style.borderColor = "#4CAF50";
+    b.innerHTML = a.icon + '<div style="font-size:14px;margin-top:4px;">' + a.name + '</div><div style="font-size:12px;color:#999;">' + a.kind + '</div>';
+    b.onclick = () => setAnimal(i);
+    grid.appendChild(b);
+  });
+  document.getElementById("animal-picker").style.display = "flex";
+}
+function closeAnimalPicker() {
+  document.getElementById("animal-picker").style.display = "none";
+}
+
+/* ===== 教學引導系統 ===== */
+let teachingSteps = [];
+let teachingIdx = 0;
+function startTeaching() {
+  const q = quizQuestions[quizIdx];
+  teachingSteps = q.teaching || [q.hint || "再想想看！"];
+  teachingIdx = 0;
+  const a = getAnimal();
+  document.getElementById("teaching-animal").textContent = a.icon;
+  renderTeachingStep();
+  document.getElementById("teaching-modal").style.display = "flex";
+  speak(teachingSteps[0]);
+}
+function renderTeachingStep() {
+  const total = teachingSteps.length;
+  document.getElementById("teaching-step-num").textContent = `第 ${teachingIdx + 1} 步 / 共 ${total} 步`;
+  document.getElementById("teaching-text").textContent = teachingSteps[teachingIdx];
+  document.getElementById("teaching-prev").style.display = teachingIdx > 0 ? "inline-block" : "none";
+  const nextBtn = document.getElementById("teaching-next");
+  if (teachingIdx === total - 1) {
+    nextBtn.textContent = "我懂了，回去再試一次！ 💪";
+  } else {
+    nextBtn.textContent = "下一步 →";
+  }
+}
+function teachingNav(dir) {
+  const total = teachingSteps.length;
+  if (dir === 1 && teachingIdx === total - 1) {
+    // 最後一步：關閉教學，重置嘗試次數讓小孩重答
+    closeTeaching();
+    retryQuestion();
+    return;
+  }
+  teachingIdx = Math.max(0, Math.min(total - 1, teachingIdx + dir));
+  renderTeachingStep();
+  speak(teachingSteps[teachingIdx]);
+}
+function closeTeaching() {
+  document.getElementById("teaching-modal").style.display = "none";
+}
+function skipTeaching() {
+  // 小孩說懂了，直接下一題
+  quizIdx++;
+  quizIdx < 5 ? nextQuizQuestion() : finishQuiz();
+}
+function retryQuestion() {
+  // 教學完重試：重置嘗試次數，重新啟用選項按鈕
+  quizTries = 0;
+  document.getElementById("quiz-hint").style.display = "none";
+  document.getElementById("quiz-feedback").textContent = "";
+  document.getElementById("quiz-feedback").className = "quiz-feedback";
+  document.querySelectorAll("#quiz-options button").forEach(b => b.disabled = false);
+  const a = getAnimal();
+  speak(`${a.name}相信你！再試一次吧！`);
+}
+
 /* ===== 假登入：身份選擇 ===== */
 let currentRole = null;
 function loginAs(role) {
@@ -1052,7 +1186,8 @@ function loginAs(role) {
   document.getElementById("parent-zone").style.display = role === "parent" ? "block" : "none";
   window.scrollTo(0, 0);
   if (role === "kid") {
-    // 小孩進入：重新渲染點數和獎勵
+    // 小孩進入：套用小動物、重新渲染點數和獎勵
+    applyAnimal();
     document.getElementById("kid-points").textContent = kidPoints;
     renderKidRewards();
     renderBadges();
@@ -1094,7 +1229,7 @@ const QUIZ_TYPES = [
   "是非題：判斷對錯，如「7 + 8 = 16，對不對？」（答案填「對」或「不對」）",
   "選擇題：給 3 個選項，如「12 + 8 = ? A.18 B.20 C.22」（答案填選項字母）",
 ];
-const QUIZ_ROLE = `你是「問問獸」出題官，一隻愛出數學題考小朋友的怪獸。
+const QUIZ_ROLE = `你是「問問小動物」出題官，一隻愛出數學題考小朋友的小動物。
 每次只出一題，輸出 JSON 格式：
 {"question": "題目文字（40字內，台灣國小生口語）", "answer": "正確答案（純數字、符號或簡短文字）", "hint": "答錯時的提示（引導思考，不直接給答案，30字內）", "type": "題型"}
 題型要多樣化，輪流出以下幾種：
@@ -1197,7 +1332,7 @@ async function nextQuizQuestion() {
   document.getElementById("quiz-options").innerHTML = "";
   document.getElementById("quiz-num").textContent = quizIdx + 1;
   const qEl = document.getElementById("quiz-question");
-  qEl.textContent = "🦖 問問獸想題目中…";
+  qEl.textContent = getAnimal().icon + " " + getAnimal().name + "想題目中…";
   try {
     // 優先從本地題庫抽（0 成本）
     const askedIds = quizQuestions.map(q => q.id).filter(Boolean);
@@ -1235,7 +1370,7 @@ function renderQuizOptions(q) {
   const opts = q.options;
   if (!opts || !opts.length) {
     // 沒有選項（AI fallback）：顯示提示
-    box.innerHTML = '<p class="hint">這題沒有選項，請用問問獸模式作答。</p>';
+    box.innerHTML = '<p class="hint">這題沒有選項，請用拍照問問題模式作答。</p>';
     return;
   }
   opts.forEach(opt => {
@@ -1291,15 +1426,20 @@ async function submitQuizAnswer(selectedOpt) {
     quizTries++;
     quizStreak = 0;
     if (quizTries >= 2) {
-      // 兩次都錯：公布答案並講解
+      // 兩次都錯：公布答案、講解，並提供教學引導
       quizResults.push(false);
       fb.textContent = `😅 正確答案是「${q.answer}」`;
       fb.className = "quiz-feedback no";
       const hintBox = document.getElementById("quiz-hint");
-      hintBox.innerHTML = "💡 <b>問問獸講解：</b>" + esc(q.hint);
+      const a = getAnimal();
+      hintBox.innerHTML = "💡 <b>" + a.name + "講解：</b>" + esc(q.hint) +
+        `<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn-teal" onclick="startTeaching()" style="font-size:18px;padding:14px 20px;">${a.icon} ${a.name}，再教我一次！</button>
+          <button class="btn-gray" onclick="skipTeaching()" style="font-size:16px;padding:14px 20px;">我懂了，下一題</button>
+        </div>`;
       hintBox.style.display = "block";
       speak(`沒關係，正確答案是${q.answer}。${q.hint}`);
-      setTimeout(() => { quizIdx++; quizIdx < 5 ? nextQuizQuestion() : finishQuiz(); }, 3000);
+      // 不自動跳題，等小孩選擇
     } else {
       // 第一次答錯：給提示再試，重新啟用按鈕
       fb.textContent = "🤔 再想想看！";
@@ -1348,7 +1488,7 @@ function finishQuiz() {
     <div style="font-size:18px;">答對 ${okCount} / 5 題，得分 ${quizScore} 分</div>
     <div style="font-size:16px;color:#b8860b;margin-top:8px;">🪙 +${quizScore} 點已加入！</div>
     <button class="btn-teal" onclick="resetQuiz()" style="margin-top:16px;font-size:18px;">🔄 再玩一次</button>
-    <button class="btn-gray" onclick="switchMode('ask')" style="margin-top:8px;">🦖 去問問獸</button>`;
+    <button class="btn-gray" onclick="switchMode('ask')" style="margin-top:8px;">📷 去問問題</button>`;
   speak(msg + `你答對了${okCount}題，得到${quizScore}分！`);
   launchConfetti();
   // 點數、徽章、每日任務
@@ -1386,7 +1526,7 @@ const BADGE_DEFS = [
   { id: "first", icon: "🌱", name: "初試身手", desc: "完成第一輪出題" },
   { id: "streak3", icon: "🔥", name: "連擊王", desc: "連續答對 3 題" },
   { id: "perfect", icon: "💯", name: "完美通關", desc: "一輪 5 題全對" },
-  { id: "asker", icon: "🦖", name: "愛發問", desc: "用問問獸解開 3 題" },
+  { id: "asker", icon: "🦖", name: "愛發問", desc: "用拍照問問題解開 3 題" },
   { id: "hundred", icon: "💪", name: "百點達人", desc: "累積 100 點" },
   { id: "daily", icon: "📅", name: "天天練習", desc: "完成今日任務" },
 ];

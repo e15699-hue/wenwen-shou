@@ -12,8 +12,9 @@
          color: #333; min-height: 100vh; }
   h1 { color: #ff6b6b; text-align: center; margin: 8px 0 2px; font-size: 28px;
        text-shadow: 0 2px 0 rgba(255,255,255,.8); }
-  .monster { font-size: 72px; text-align: center; animation: bounce 2s ease-in-out infinite;
-             filter: drop-shadow(0 4px 6px rgba(0,0,0,.15)); }
+  .monster { text-align: center; filter: drop-shadow(0 4px 6px rgba(0,0,0,.15)); }
+  .monster img { width: 110px; height: 110px; object-fit: contain; animation: float 3s ease-in-out infinite; }
+  @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
   @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
   .tagline { text-align: center; color: #666; margin-bottom: 16px; font-size: 15px; }
   .tagline b { color: #ff6b6b; }
@@ -267,7 +268,7 @@
 <!-- ===== 學童區 ===== -->
 <div id="kid-zone" style="display:none;">
 <h1><span id="animal-title-icon">🐱</span> <span id="animal-title-name">問問小動物</span></h1>
-<div class="monster" id="animal-big-icon" style="font-size:72px;cursor:pointer;" onclick="openAnimalPicker()" title="點我換小動物！">🐱</div>
+<div class="monster" id="animal-big-icon" style="cursor:pointer;min-height:110px;display:flex;align-items:center;justify-content:center;" onclick="openAnimalPicker()" title="點我換小動物！">🐱</div>
 <p class="tagline"><span id="animal-tagline">遇到不會的題目，拍照問我就對了！</span><br>沒事也可以來玩隨機出題，越玩越厲害！💪<br><span style="font-size:13px;color:#999;">👆 點上面的小動物可以換一隻喔！</span></p>
 
 <!-- 小動物選擇器 -->
@@ -1283,14 +1284,16 @@ function setAnimal(idx) {
 function applyAnimal() {
   const a = getAnimal();
   const evo = getEvolutionInfo(a.audioKey);
-  const iconEls = ["animal-title-icon", "animal-big-icon"];
-  iconEls.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      // 顯示進化圖片，如果載入失敗則顯示 emoji
-      el.innerHTML = `<img src="${evo.img}" alt="${evo.name}" style="width:1.2em;height:1.2em;object-fit:contain;vertical-align:middle;" onerror="this.style.display='none';this.parentElement.textContent='${a.icon}';">`;
-    }
-  });
+  // 標題小圖
+  const titleEl = document.getElementById("animal-title-icon");
+  if (titleEl) {
+    titleEl.innerHTML = `<img src="${evo.img}" alt="${evo.name}" style="width:1.2em;height:1.2em;object-fit:contain;vertical-align:middle;" onerror="this.style.display='none';this.parentElement.textContent='${a.icon}';">`;
+  }
+  // 主畫面大圖（用 CSS .monster img 控制尺寸）
+  const bigEl = document.getElementById("animal-big-icon");
+  if (bigEl) {
+    bigEl.innerHTML = `<img src="${evo.img}" alt="${evo.name}" onerror="this.style.display='none';this.parentElement.textContent='${a.icon}';this.parentElement.style.fontSize='72px';">`;
+  }
   const nameEl = document.getElementById("animal-title-name");
   if (nameEl) nameEl.textContent = "問問" + a.kind;
   const tagEl = document.getElementById("animal-tagline");
@@ -1306,15 +1309,16 @@ function openAnimalPicker() {
   grid.innerHTML = "";
   ANIMALS.forEach((a, i) => {
     const b = document.createElement("button");
-    b.style.cssText = "padding:12px;border:3px solid #eee;border-radius:16px;background:#fff;cursor:pointer;";
-    if (getAnimal().name === a.name) b.style.borderColor = "#4CAF50";
+    b.style.cssText = "padding:12px 8px;border:3px solid #eee;border-radius:16px;background:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:transform .15s;";
+    if (getAnimal().name === a.name) { b.style.borderColor = "#4CAF50"; b.style.boxShadow = "0 0 0 3px rgba(76,175,80,.2)"; }
+    b.onmouseover = () => b.style.transform = "scale(1.05)";
+    b.onmouseout = () => b.style.transform = "scale(1)";
     const lvl = getAnimalLevel(a.audioKey);
     const evo = getEvolutionInfo(a.audioKey);
-    b.innerHTML = `<img src="${evo.img}" alt="${evo.name}" style="width:64px;height:64px;object-fit:contain;" onerror="this.style.display='none';">` +
-      '<div style="font-size:40px;">' + a.icon + '</div>' +
-      '<div style="font-size:14px;margin-top:4px;font-weight:bold;">' + evo.name + '</div>' +
-      '<div style="font-size:12px;color:#999;">' + a.kind + '</div>' +
-      '<div style="font-size:11px;color:#ff9800;font-weight:bold;">Lv.' + lvl + ' ' + getLevelTitle(lvl) + '</div>';
+    b.innerHTML =
+      `<img src="${evo.img}" alt="${evo.name}" style="width:72px;height:72px;object-fit:contain;" onerror="this.outerHTML='<div style=&quot;font-size:48px;&quot;>${a.icon}</div>';">` +
+      '<div style="font-size:15px;font-weight:bold;color:#333;">' + evo.name + '</div>' +
+      '<div style="font-size:11px;color:#ff9800;font-weight:bold;background:#fff3e0;padding:2px 8px;border-radius:10px;">Lv.' + lvl + ' ' + getLevelTitle(lvl) + '</div>';
     b.onclick = () => setAnimal(i);
     grid.appendChild(b);
   });

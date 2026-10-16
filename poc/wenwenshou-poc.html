@@ -1332,7 +1332,12 @@ function teachingNav(dir) {
   if (dir === 1 && teachingIdx === total - 1) {
     // 最後一步：關閉教學，重置嘗試次數讓小孩重答
     closeTeaching();
-    retryQuestion();
+    if (window._teachingFromError) {
+      window._teachingFromError = false;
+      retryErrorQuestion();
+    } else {
+      retryQuestion();
+    }
     return;
   }
   teachingIdx = Math.max(0, Math.min(total - 1, teachingIdx + dir));
@@ -1341,6 +1346,7 @@ function teachingNav(dir) {
 }
 function closeTeaching() {
   document.getElementById("teaching-modal").style.display = "none";
+  window._teachingFromError = false;
 }
 function skipTeaching() {
   // 小孩說懂了，直接下一題
@@ -1354,6 +1360,14 @@ function retryQuestion() {
   document.getElementById("quiz-feedback").textContent = "";
   document.getElementById("quiz-feedback").className = "quiz-feedback";
   document.querySelectorAll("#quiz-options button").forEach(b => b.disabled = false);
+  playAnimalSound("retry", "再試一次吧，你一定可以的！");
+}
+function retryErrorQuestion() {
+  // 錯題本教學完重試：重置嘗試次數，重新啟用選項按鈕
+  errorTries = 0;
+  document.getElementById("error-hint").style.display = "none";
+  document.getElementById("error-feedback").textContent = "";
+  document.querySelectorAll("#error-options button").forEach(b => b.disabled = false);
   playAnimalSound("retry", "再試一次吧，你一定可以的！");
 }
 
@@ -1624,21 +1638,23 @@ async function submitQuizAnswer(selectedOpt) {
     quizTries++;
     quizStreak = 0;
     if (quizTries >= 2) {
-      // 兩次都錯：公布答案、講解，並提供教學引導
+      // 兩次都錯：不給答案，只給引導（死不給答案原則）
       quizResults.push(false);
       // 加入錯題本
       addError(q);
-      fb.textContent = `😅 正確答案是「${q.answer}」`;
+      fb.textContent = `😅 還沒找到答案，沒關係！`;
       fb.className = "quiz-feedback no";
       const hintBox = document.getElementById("quiz-hint");
       const a = getAnimal();
-      hintBox.innerHTML = "💡 <b>" + a.name + "講解：</b>" + esc(q.hint) +
+      hintBox.innerHTML = "💡 <b>" + a.name + "說：</b>" + esc(q.hint) +
         `<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
           <button class="btn-teal" onclick="startTeaching()" style="font-size:18px;padding:14px 20px;">${a.icon} ${a.name}，再教我一次！</button>
-          <button class="btn-gray" onclick="skipTeaching()" style="font-size:16px;padding:14px 20px;">我懂了，下一題</button>
+          <button class="btn-gray" onclick="skipTeaching()" style="font-size:16px;padding:14px 20px;">先跳過，下一題</button>
         </div>`;
       hintBox.style.display = "block";
-      speak(`沒關係，正確答案是${q.answer}。${q.hint}`);
+      playAnimalSound("encourage", getAnimal().encourage).then(() => {
+        speak(speechText(q.hint, q.type));
+      });
       // 不自動跳題，等小孩選擇
     } else {
       // 第一次答錯：給提示再試，重新啟用按鈕
@@ -1789,13 +1805,22 @@ function checkErrorAnswer(selected, btn) {
   } else {
     errorTries++;
     if (errorTries >= 2) {
-      fb.textContent = `😅 再想想！正確答案是「${q.answer}」`;
+      // 兩次都錯：不給答案，只給引導，讓小孩選擇再學一次或跳過
+      fb.textContent = "😅 還沒找到答案，沒關係！";
       fb.style.color = "#e74c3c";
       btn.style.background = "#f8d7da";
-      document.getElementById("error-hint").innerHTML = "💡 <b>提示：</b>" + esc(q.hint);
+      const a = getAnimal();
+      document.getElementById("error-hint").innerHTML =
+        "💡 <b>" + a.name + "說：</b>" + esc(q.hint) +
+        `<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn-teal" onclick="startErrorTeaching()" style="font-size:16px;padding:12px 18px;">${a.icon} 再教我一次！</button>
+          <button class="btn-gray" onclick="skipErrorQuestion()" style="font-size:16px;padding:12px 18px;">先跳過，下一題</button>
+        </div>`;
       document.getElementById("error-hint").style.display = "block";
-      speak(`沒關係，正確答案是${q.answer}。${q.hint}`);
-      setTimeout(() => { errorIdx++; nextErrorQuestion(); }, 3000);
+      playAnimalSound("encourage", getAnimal().encourage).then(() => {
+        speak(speechText(q.hint, q.type));
+      });
+      // 不自動跳題，等小孩選擇
     } else {
       fb.textContent = "🤔 再想想看！";
       fb.style.color = "#e67e22";
@@ -1807,6 +1832,40 @@ function checkErrorAnswer(selected, btn) {
       document.querySelectorAll("#error-options button").forEach(b => b.disabled = false);
     }
   }
+}
+
+function skipErrorQuestion() {
+  // 跳過這題，留在錯題本，下次再練
+  errorIdx++;
+  nextErrorQuestion();
+}
+
+function startErrorTeaching() {
+  // 用共用教學模板教方法（不給答案），教完重答同一題
+  const q = errorQuestions[errorIdx];
+  teachingQType = q.type || "";
+  // 優先用題目自帶的教學，否則用共用模板
+  if (q.teaching && q.teaching.length) {
+    teachingSteps = q.teaching;
+  } else {
+    // 同步取模板（已載入過的用快取）
+    teachingSteps = [q.hint || "再想想看！"];
+    // 非同步載入完整模板
+    loadTeachingTemplates().then(templates => {
+      if (templates && templates[q.type]) {
+        teachingSteps = templates[q.type];
+        renderTeachingStep();
+      }
+    });
+  }
+  teachingIdx = 0;
+  // 標記從錯題本進入教學，關閉後回到錯題
+  window._teachingFromError = true;
+  renderTeachingStep();
+  document.getElementById("teaching-modal").style.display = "flex";
+  playAnimalSound("teach", "讓我來教你！").then(() => {
+    speak(speechText(teachingSteps[0], teachingQType));
+  });
 }
 
 function finishErrorReview() {

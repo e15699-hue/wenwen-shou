@@ -1318,15 +1318,33 @@ async function startQuiz() {
 /* ===== 本地題庫（0 成本，優先使用） ===== */
 let localBank = {};  // grade -> [questions]
 let bankLoaded = {};
+const QUIZ_TYPE_NAMES = ["計算題", "填充題", "應用題", "比大小", "是非題", "選擇題"];
 async function loadBank(grade) {
   if (bankLoaded[grade]) return localBank[grade];
   try {
-    const res = await fetch("data/questions_" + grade + ".json");
-    if (!res.ok) throw new Error("not found");
-    const qs = await res.json();
-    localBank[grade] = qs;
+    // 先試著載入合併版（舊格式）
+    let res = await fetch("data/questions_" + grade + ".json");
+    if (res.ok) {
+      const qs = await res.json();
+      localBank[grade] = qs;
+      bankLoaded[grade] = true;
+      return qs;
+    }
+  } catch (e) {}
+  try {
+    // 載入拆分版（按題型）
+    const all = [];
+    for (const t of QUIZ_TYPE_NAMES) {
+      const r = await fetch(`data/questions_${grade}_${t}.json`);
+      if (r.ok) {
+        const qs = await r.json();
+        all.push(...qs);
+      }
+    }
+    if (!all.length) throw new Error("empty");
+    localBank[grade] = all;
     bankLoaded[grade] = true;
-    return qs;
+    return all;
   } catch (e) {
     bankLoaded[grade] = false;
     return null;

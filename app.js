@@ -628,6 +628,7 @@ const titleEl = document.getElementById("animal-title-icon");
 if (titleEl) {
 titleEl.innerHTML = `<img src="${evo.img}" alt="${evo.name}" style="width:1.2em;height:1.2em;object-fit:contain;vertical-align:middle;" onerror="this.style.display='none';this.parentElement.textContent='${a.icon}';">`;
 }
+if (typeof SpriteAnim !== "undefined") SpriteAnim.stop();
 const bigEl = document.getElementById("animal-big-icon");
 if (bigEl) {
 bigEl.innerHTML = `<img src="${evo.img}" alt="${evo.name}" onerror="this.style.display='none';this.parentElement.textContent='${a.icon}';this.parentElement.style.fontSize='72px';">`;
@@ -2519,15 +2520,77 @@ const Walker={x:50,y:70,tx:50,ty:70,speed:0.25,moving:false,paused:false,el:null
 init(){this.el=document.getElementById("animal-walker");if(!this.el){setTimeout(()=>this.init(),1000);return;}this.pickTarget();setInterval(()=>this.tick(),50);},
 pickTarget(){this.tx=15+Math.random()*70;this.ty=55+Math.random()*30;},
 tick(){if(this.paused||!this.el)return;
-try{if(typeof isFainted==="function"&&typeof getAnimal==="function"&&isFainted(getAnimal().audioKey))return;}catch(e){}
+try{if(typeof isFainted==="function"&&typeof getAnimal==="function"&&isFainted(getAnimal().audioKey)){if(typeof SpriteAnim!=="undefined"&&SpriteAnim.active)SpriteAnim.stop();return;}}catch(e){}
 const dx=this.tx-this.x,dy=this.ty-this.y,dist=Math.hypot(dx,dy);
-if(dist<2){this.moving=false;this.el.classList.remove("walking");if(Math.random()<0.03)this.pickTarget();return;}
+if(dist<2){this.moving=false;this.el.classList.remove("walking");if(typeof SpriteAnim!=="undefined"&&SpriteAnim.active)SpriteAnim.stop();if(Math.random()<0.03)this.pickTarget();return;}
 this.moving=true;this.el.classList.add("walking");
+if(typeof SpriteAnim!=="undefined"&&typeof getAnimal==="function"){try{SpriteAnim.start(getAnimal().audioKey);}catch(e){}}
 this.x+=dx/dist*this.speed;this.y+=dy/dist*this.speed;
 this.el.style.left=this.x+"%";this.el.style.top=this.y+"%";
 if(dx>0.5)this.el.classList.remove("facing-left");else if(dx<-0.5)this.el.classList.add("facing-left");},
-pause(){this.paused=true;if(this.el)this.el.classList.remove("walking");},
+pause(){this.paused=true;if(this.el)this.el.classList.remove("walking");if(typeof SpriteAnim!=="undefined")SpriteAnim.stop();},
 resume(){this.paused=false;},
 happy(){if(!this.el)return;this.el.classList.remove("happy");void this.el.offsetWidth;this.el.classList.add("happy");setTimeout(()=>{if(this.el)this.el.classList.remove("happy")},600);}
 };
 setTimeout(()=>Walker.init(),2000);
+
+// ===== 逐幀走路動畫（4幀橫排 webp sprite）=====
+const SpriteAnim = {
+  frames: 4, current: 0, timer: null, spriteEl: null, active: false, animalKey: null, loading: false,
+  sprites: { cat:"cat_walk", dog:"dog_walk", rabbit:"rabbit_walk", panda:"panda_walk", fox:"fox_walk", pig:"pig_walk" },
+  start(animalKey) {
+    const bigEl = document.getElementById("animal-big-icon");
+    if (!bigEl) return;
+    const sprite = this.sprites[animalKey];
+    if (!sprite) return;
+    if ((this.active || this.loading) && this.animalKey === animalKey) return;
+    this.stop();
+    this.animalKey = animalKey;
+    this.loading = true;
+    const url = "images/walk/" + sprite + ".webp";
+    const test = new Image();
+    test.onload = () => {
+      this.loading = false;
+      // 載入期間可能已經 stop 或換動物
+      if (this.animalKey !== animalKey) return;
+      const el = document.getElementById("animal-big-icon");
+      if (!el) return;
+      const staticImg = el.querySelector(":scope > img");
+      if (staticImg) staticImg.style.display = "none";
+      const d = document.createElement("div");
+      d.id = "walk-sprite";
+      d.style.cssText = "width:110px;height:110px;background-repeat:no-repeat;margin:0 auto;";
+      d.style.backgroundImage = 'url("' + url + '")';
+      d.style.backgroundSize = "400% 100%";
+      d.style.backgroundPosition = "0 0";
+      el.insertBefore(d, el.firstChild);
+      this.spriteEl = d;
+      this.current = 0;
+      this.active = true;
+      this.timer = setInterval(() => this.next(), 200);
+    };
+    test.onerror = () => {
+      this.loading = false;
+      this.animalKey = null;
+      this.active = false;
+      // 載入失敗：保持靜態圖（優雅 fallback）
+    };
+    test.src = url;
+  },
+  next() {
+    this.current = (this.current + 1) % this.frames;
+    if (this.spriteEl) this.spriteEl.style.backgroundPosition = (this.current * 100 / 3) + "% 0";
+  },
+  stop() {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    this.loading = false;
+    if (this.spriteEl) { this.spriteEl.remove(); this.spriteEl = null; }
+    const bigEl = document.getElementById("animal-big-icon");
+    if (bigEl) {
+      const staticImg = bigEl.querySelector(":scope > img");
+      if (staticImg) staticImg.style.display = "";
+    }
+    this.active = false; this.animalKey = null; this.current = 0;
+  }
+};

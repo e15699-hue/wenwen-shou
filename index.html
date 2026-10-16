@@ -947,6 +947,21 @@ function speak(text) {
     speechSynthesis.speak(u);
   } catch (e) {}
 }
+// 解鎖語音：瀏覽器需要使用者互動後才能發聲
+let voiceUnlocked = false;
+function unlockVoice() {
+  if (voiceUnlocked) return;
+  voiceUnlocked = true;
+  try {
+    // 播放一個無聲的 utterance 來解鎖
+    const u = new SpeechSynthesisUtterance("");
+    u.volume = 0;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+// 任何點擊都嘗試解鎖語音
+document.addEventListener("click", unlockVoice, { once: false });
+document.addEventListener("touchstart", unlockVoice, { once: false });
 // 載入語音列表（有些瀏覽器需要非同步載入）
 if (typeof speechSynthesis !== "undefined") {
   speechSynthesis.onvoiceschanged = () => { buildVoiceList(); };
@@ -1121,6 +1136,8 @@ function setAnimal(idx) {
   try { localStorage.setItem("wws_animal", JSON.stringify(currentAnimal)); } catch (e) {}
   applyAnimal();
   closeAnimalPicker();
+  // 用新選的小動物的聲音打招呼，讓小孩立即聽到
+  speak(currentAnimal.greeting + "以後都由我陪你玩喔！");
 }
 function applyAnimal() {
   const a = getAnimal();

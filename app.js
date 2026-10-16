@@ -698,7 +698,7 @@ try {
 const a = getAnimal();
 const audio = new Audio(`audio/${a.audioKey}_greeting.mp3`);
 audio.play().catch(() => {});
-    addMood(a.audioKey, 5);
+    if (typeof addMood === "function") addMood(a.audioKey, 5);
 } catch (err) {}
 }
 document.addEventListener("DOMContentLoaded", () => {
@@ -1375,7 +1375,10 @@ Lv.${level} ${title}
 ${evoHtml}
 <div style="font-size:14px;color:#666;margin:12px 0;">✨ ${getSkillDisplay(animal)}</div><button onclick="document.getElementById('levelup-modal').remove();" style="margin-top:12px;padding:12px 40px;font-size:17px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#66bb6a,#43a047);border:none;border-radius:25px;cursor:pointer;box-shadow:0 4px 12px rgba(76,175,80,.4);">
 繼續玩！💪
-</button></div><style>@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}@keyframes popIn{0%{transform:scale(.5);opacity:0;}100%{transform:scale(1);opacity:1;}}</style>
+</button></div><style>
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { 0% { transform: scale(.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+</style>
 `;
 document.body.appendChild(modal);
 modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
@@ -1999,8 +2002,8 @@ playAnimalSound("praise1", a.praise[0]);
 }
 addAnimalXP(a.audioKey, xpGain);
 if (!food.disliked) addSatiety(a.audioKey, 15 + Math.floor(food.xp / 2));
-  const _liked = food.likedBy && food.likedBy.includes(a.audioKey);
-  if (typeof addMood === "function") addMood(a.audioKey, food.disliked ? -8 : _liked ? 10 : 4);
+  const _likedM = food.likedBy && food.likedBy.includes(a.audioKey);
+  if (typeof addMood === "function") addMood(a.audioKey, food.disliked ? -8 : _likedM ? 10 : 4);
 const el = document.getElementById("animal-big-icon");
 if (el) {
 const img = el.querySelector("img") || el;
@@ -2057,6 +2060,7 @@ modal.innerHTML = `<div style="background:#f5f5f5;border-radius:24px;padding:20p
 document.body.appendChild(modal);
 modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
 }
+/* ===== RPG 飽食度系統 ===== */
 const MAX_SAT = 100;
 function getSatiety(audioKey) {
 try {
@@ -2079,6 +2083,7 @@ updateRpgHud();
 function addSatiety(audioKey, n) {
 setSatiety(audioKey, getSatiety(audioKey) + n);
 }
+/* 更新 RPG HUD */
 function updateRpgHud() {
 const a = getAnimal();
 if (!a) return;
@@ -2121,6 +2126,7 @@ if (warn) warn.remove();
 }
 }
 const _origFeed = window.feedAnimal;
+/* ===== 飢餓懲罰系統 ===== */
 const HUNGER_LEVEL_DROP_HOURS = 12; // 飢餓12小時降1級
 function getHungerState(audioKey) {
 try { return JSON.parse(localStorage.getItem("wws_hunger") || "{}")[audioKey] || null; }
@@ -2212,6 +2218,7 @@ function updatePickerFaint() {
 setInterval(checkHunger, 60000);
 setTimeout(checkHunger, 2000);
 
+/* ===== 每日簽到系統 ===== */
 const CHECKIN_REWARDS = [
   { day: 1, points: 20, food: null, label: "20點" },
   { day: 2, points: 30, food: "feed", label: "30點+飼料" },
@@ -2219,7 +2226,7 @@ const CHECKIN_REWARDS = [
   { day: 4, points: 50, food: "feed", label: "50點+飼料" },
   { day: 5, points: 60, food: null, label: "60點" },
   { day: 6, points: 80, food: "feed", label: "80點+飼料" },
-  { day: 7, points: 100, food: null, acc: "halo", label: "100點+✨光環" },
+  { day: 7, points: 100, food: null, acc: "halo", label: "100點+✨光環" }
 ];
 function getCheckin() {
   try { return JSON.parse(localStorage.getItem("wws_checkin") || "{}"); }
@@ -2230,11 +2237,11 @@ function checkinStatus() {
   const d = getCheckin();
   const today = new Date().toISOString().slice(0, 10);
   const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  if (d.last === today) return { can: false, streak: d.streak || 0, reason: "done" };
+  if (d.last === today) return { can: false, streak: d.streak || 0 };
   let streak = 1;
   if (d.last === yest) streak = (d.streak || 0) + 1;
-  if (streak > 7) streak = 1; // 7天一輪
-  return { can: true, streak };
+  if (streak > 7) streak = 1;
+  return { can: true, streak: streak };
 }
 function doCheckin() {
   const st = checkinStatus();
@@ -2244,16 +2251,16 @@ function doCheckin() {
   saveCheckin({ last: today, streak: st.streak });
   kidPoints += rw.points;
   lsSet(LS_KEYS.points, kidPoints);
-  let msg = `📅 簽到成功！連續第 ${st.streak} 天\n獲得 ${rw.points} 點！`;
-  if (rw.food) { addFood(rw.food, 1); msg += "\n獲得 🍚 普通飼料 x1！"; }
-  if (rw.acc) { ownAccessory(rw.acc); msg += "\n🎉 獲得稀有飾品 ✨星星光環！"; }
+  let msg = "📅 簽到成功！連續第 " + st.streak + " 天\n獲得 " + rw.points + " 點！";
+  if (rw.food && typeof addFood === "function") { addFood(rw.food, 1); msg += "\n獲得 🍚 普通飼料 x1！"; }
+  if (rw.acc && typeof ownAccessory === "function") { ownAccessory(rw.acc); msg += "\n🎉 獲得稀有飾品 ✨星星光環！"; }
   if (st.streak === 7) msg += "\n🏆 完成一週簽到！下週繼續！";
   if (typeof updatePointsDisplay === "function") updatePointsDisplay();
   if (typeof updateRpgHud === "function") updateRpgHud();
   if (typeof renderFeedZone === "function") renderFeedZone();
   alert(msg);
   openCheckin();
-  checkAchv("checkin", st.streak);
+  if (typeof checkAchv === "function") checkAchv("checkin", st.streak);
 }
 function openCheckin() {
   let m = document.getElementById("checkin-modal");
@@ -2262,31 +2269,32 @@ function openCheckin() {
   m.id = "checkin-modal";
   m.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:10001;display:flex;justify-content:center;align-items:center;padding:16px;";
   const st = checkinStatus();
-  const days = CHECKIN_REWARDS.map((r, i) => {
+  let days = "";
+  CHECKIN_REWARDS.forEach((r, i) => {
     const d = i + 1;
     const done = d < st.streak || (!st.can && d <= st.streak);
     const cur = st.can && d === st.streak;
-    return `<div style="background:${cur ? "#fff9c4" : done ? "#e8f5e9" : "#fff"};border:${cur ? "3px solid #ffc107" : "2px solid #eee"};border-radius:12px;padding:10px 4px;text-align:center;">
-      <div style="font-size:12px;color:#999;">第${d}天</div>
-      <div style="font-size:24px;margin:4px 0;">${d === 7 ? "🎁" : d % 2 === 0 ? "🍚" : "⭐"}</div>
-      <div style="font-size:11px;font-weight:bold;">${r.label}</div>
-      <div style="font-size:11px;">${done ? "✅" : cur ? "👈" : ""}</div>
-    </div>`;
-  }).join("");
-  m.innerHTML = `<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:440px;width:100%;">
-    <h2 style="margin:0 0 4px;font-size:20px;text-align:center;">📅 每日簽到</h2>
-    <p style="text-align:center;font-size:13px;color:#666;margin:0 0 12px;">連續簽到7天可獲得稀有飾品！</p>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">${days}</div>
-    ${st.can
-      ? `<button onclick="doCheckin()" style="width:100%;padding:14px;font-size:17px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#66bb6a,#43a047);border:none;border-radius:16px;cursor:pointer;">簽到領獎！</button>`
-      : `<div style="text-align:center;padding:12px;background:#e8f5e9;border-radius:12px;color:#2e7d32;font-weight:bold;">✅ 今天已簽到，明天再來！</div>`}
-    <button onclick="document.getElementById('checkin-modal').remove();" style="margin-top:10px;width:100%;padding:10px;font-size:14px;color:#666;background:#e0e0e0;border:none;border-radius:12px;cursor:pointer;">關閉</button>
-  </div>`;
+    days += '<div style="background:' + (cur ? "#fff9c4" : done ? "#e8f5e9" : "#fff") + ';border:' + (cur ? "3px solid #ffc107" : "2px solid #eee") + ';border-radius:12px;padding:10px 4px;text-align:center;">'
+      + '<div style="font-size:12px;color:#999;">第' + d + '天</div>'
+      + '<div style="font-size:24px;margin:4px 0;">' + (d === 7 ? "🎁" : d % 2 === 0 ? "🍚" : "⭐") + '</div>'
+      + '<div style="font-size:11px;font-weight:bold;">' + r.label + '</div>'
+      + '<div style="font-size:11px;">' + (done ? "✅" : cur ? "👈" : "") + '</div></div>';
+  });
+  const btnHtml = st.can
+    ? '<button onclick="doCheckin()" style="width:100%;padding:14px;font-size:17px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#66bb6a,#43a047);border:none;border-radius:16px;cursor:pointer;">簽到領獎！</button>'
+    : '<div style="text-align:center;padding:12px;background:#e8f5e9;border-radius:12px;color:#2e7d32;font-weight:bold;">✅ 今天已簽到，明天再來！</div>';
+  m.innerHTML = '<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:440px;width:100%;">'
+    + '<h2 style="margin:0 0 4px;font-size:20px;text-align:center;">📅 每日簽到</h2>'
+    + '<p style="text-align:center;font-size:13px;color:#666;margin:0 0 12px;">連續簽到7天可獲得稀有飾品！</p>'
+    + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">' + days + '</div>'
+    + btnHtml
+    + '<button onclick="document.getElementById(\'checkin-modal\').remove();" style="margin-top:10px;width:100%;padding:10px;font-size:14px;color:#666;background:#e0e0e0;border:none;border-radius:12px;cursor:pointer;">關閉</button></div>';
   document.body.appendChild(m);
   m.addEventListener("click", (e) => { if (e.target === m) m.remove(); });
 }
 
 
+/* ===== 成就系統 ===== */
 const ACHIEVEMENTS = [
   { id: "q10", icon: "🌱", name: "初露鋒芒", desc: "累計答對 10 題", type: "correct", target: 10, reward: 30 },
   { id: "q100", icon: "🌿", name: "百題斬", desc: "累計答對 100 題", type: "correct", target: 100, reward: 100 },
@@ -2299,7 +2307,7 @@ const ACHIEVEMENTS = [
   { id: "evo6", icon: "🌟", name: "全員進化", desc: "6隻都進化到第2階", type: "evo2", target: 6, reward: 200 },
   { id: "evo3", icon: "👑", name: "傳說收集家", desc: "第1隻進化到最終階", type: "evo3", target: 1, reward: 150 },
   { id: "checkin3", icon: "📅", name: "堅持3天", desc: "連續簽到 3 天", type: "checkin", target: 3, reward: 40 },
-  { id: "checkin7", icon: "🗓️", name: "堅持一週", desc: "連續簽到 7 天", type: "checkin", target: 7, reward: 100 },
+  { id: "checkin7", icon: "🗓️", name: "堅持一週", desc: "連續簽到 7 天", type: "checkin", target: 7, reward: 100 }
 ];
 function getAchvData() {
   try { return JSON.parse(localStorage.getItem("wws_achv") || "{}"); }
@@ -2313,13 +2321,14 @@ function getUnlockedAchv() {
 function checkAchv(type, value) {
   const unlocked = getUnlockedAchv();
   let changed = false;
+  const newOnes = [];
   ACHIEVEMENTS.forEach(ac => {
     if (ac.type !== type || unlocked.includes(ac.id)) return;
     if (value >= ac.target) {
       unlocked.push(ac.id);
       kidPoints += ac.reward;
       changed = true;
-      setTimeout(() => alert(`🏆 成就解鎖！\n${ac.icon} ${ac.name}\n${ac.desc}\n獲得 ${ac.reward} 點！`), 500);
+      newOnes.push(ac);
     }
   });
   if (changed) {
@@ -2329,8 +2338,10 @@ function checkAchv(type, value) {
     lsSet(LS_KEYS.points, kidPoints);
     if (typeof updatePointsDisplay === "function") updatePointsDisplay();
     if (typeof updateRpgHud === "function") updateRpgHud();
+    newOnes.forEach(ac => {
+      setTimeout(() => alert("🏆 成就解鎖！\n" + ac.icon + " " + ac.name + "\n" + ac.desc + "\n獲得 " + ac.reward + " 點！"), 500);
+    });
   }
-  // 檢查進化類成就
   if (type === "levelup") checkEvoAchv();
 }
 function checkEvoAchv() {
@@ -2341,9 +2352,7 @@ function checkEvoAchv() {
     if (st >= 2) evo3++;
   });
   checkAchv("evo2", evo2);
-  // evo3 用 target 1
-  const unlocked = getUnlockedAchv();
-  if (evo3 >= 1 && !unlocked.includes("evo3")) checkAchv("evo3", 1);
+  if (evo3 >= 1) checkAchv("evo3", 1);
 }
 function openAchv() {
   let m = document.getElementById("achv-modal");
@@ -2352,25 +2361,23 @@ function openAchv() {
   m.id = "achv-modal";
   m.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:10001;display:flex;justify-content:center;align-items:center;padding:16px;";
   const unlocked = getUnlockedAchv();
-  const items = ACHIEVEMENTS.map(ac => {
+  let items = "";
+  ACHIEVEMENTS.forEach(ac => {
     const un = unlocked.includes(ac.id);
-    return `<div style="background:${un ? "#fff8e1" : "#fafafa"};border:${un ? "2px solid #ffc107" : "2px solid #eee"};border-radius:12px;padding:10px;text-align:center;opacity:${un ? 1 : 0.6};">
-      <div style="font-size:32px;${un ? "" : "filter:grayscale(100%)"};">${ac.icon}</div>
-      <div style="font-size:13px;font-weight:bold;">${ac.name}</div>
-      <div style="font-size:11px;color:#666;">${ac.desc}</div>
-      <div style="font-size:11px;color:${un ? "#2e7d32" : "#999"};">${un ? "✅ 已解鎖" : `🎁 ${ac.reward}點`}</div>
-    </div>`;
-  }).join("");
-  m.innerHTML = `<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;">
-    <h2 style="margin:0 0 4px;font-size:20px;text-align:center;">🏆 成就殿堂</h2>
-    <p style="text-align:center;font-size:13px;color:#666;">已解鎖 ${unlocked.length}/${ACHIEVEMENTS.length}</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">${items}</div>
-    <button onclick="document.getElementById('achv-modal').remove();" style="margin-top:12px;width:100%;padding:10px;background:#9e9e9e;color:#fff;border:none;border-radius:12px;font-size:14px;cursor:pointer;">關閉</button>
-  </div>`;
+    items += '<div style="background:' + (un ? "#fff8e1" : "#fafafa") + ';border:' + (un ? "2px solid #ffc107" : "2px solid #eee") + ';border-radius:12px;padding:10px;text-align:center;opacity:' + (un ? 1 : 0.6) + ';">'
+      + '<div style="font-size:32px;' + (un ? "" : "filter:grayscale(100%);") + '">' + ac.icon + '</div>'
+      + '<div style="font-size:13px;font-weight:bold;">' + ac.name + '</div>'
+      + '<div style="font-size:11px;color:#666;">' + ac.desc + '</div>'
+      + '<div style="font-size:11px;color:' + (un ? "#2e7d32" : "#999") + ';">' + (un ? "✅ 已解鎖" : "🎁 " + ac.reward + "點") + '</div></div>';
+  });
+  m.innerHTML = '<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:480px;width:100%;max-height:85vh;overflow-y:auto;">'
+    + '<h2 style="margin:0 0 4px;font-size:20px;text-align:center;">🏆 成就殿堂</h2>'
+    + '<p style="text-align:center;font-size:13px;color:#666;">已解鎖 ' + unlocked.length + '/' + ACHIEVEMENTS.length + '</p>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' + items + '</div>'
+    + '<button onclick="document.getElementById(\'achv-modal\').remove();" style="margin-top:12px;width:100%;padding:10px;background:#9e9e9e;color:#fff;border:none;border-radius:12px;font-size:14px;cursor:pointer;">關閉</button></div>';
   document.body.appendChild(m);
   m.addEventListener("click", (e) => { if (e.target === m) m.remove(); });
 }
-// 統計：答對題數、餵食次數
 function incStat(key, n) {
   let d = {};
   try { d = JSON.parse(localStorage.getItem("wws_stats") || "{}"); } catch (e) {}
@@ -2381,13 +2388,13 @@ function incStat(key, n) {
 }
 
 
+/* ===== 心情值系統 ===== */
 const MAX_MOOD = 100;
 function getMood(audioKey) {
   try {
     const d = JSON.parse(localStorage.getItem("wws_mood") || "{}");
     const s = d[audioKey];
     if (!s) return 70;
-    // 隨時間下降：每小時 -2
     const hours = (Date.now() - s.ts) / 3600000;
     return Math.max(0, Math.min(MAX_MOOD, s.val - Math.floor(hours * 2)));
   } catch (e) { return 70; }
@@ -2407,7 +2414,6 @@ function getMoodFace(mood) {
   return "😢";
 }
 function getMoodBonus(audioKey) {
-  // 心情影響技能觸發率
   const m = getMood(audioKey);
   if (m >= 80) return 1.5;
   if (m < 25) return 0.75;
@@ -2422,15 +2428,16 @@ function updateMoodDisplay() {
   const face = getMoodFace(mood);
   const bonus = getMoodBonus(a.audioKey);
   const bonusTxt = bonus > 1 ? '<span style="color:#2e7d32;">技能率+50%!</span>' : bonus < 1 ? '<span style="color:#c62828;">技能率-25%</span>' : '';
-  el.innerHTML = `<span style="font-size:18px;">${face}</span>
-    <span style="font-size:13px;font-weight:bold;">心情 ${mood}</span>
-    <div style="width:100%;height:8px;background:rgba(0,0,0,.1);border-radius:4px;margin-top:4px;overflow:hidden;">
-      <div style="height:100%;width:${mood}%;background:${mood >= 80 ? "#66bb6a" : mood >= 50 ? "#ffca28" : "#ef5350"};border-radius:4px;transition:width .5s;"></div>
-    </div>
-    <div style="font-size:11px;color:#666;margin-top:2px;">${bonusTxt} 摸摸牠、餵喜歡的食物會開心喔！</div>`;
+  const barColor = mood >= 80 ? "#66bb6a" : mood >= 50 ? "#ffca28" : "#ef5350";
+  el.innerHTML = '<span style="font-size:18px;">' + face + '</span>'
+    + '<span style="font-size:13px;font-weight:bold;">心情 ' + mood + '</span>'
+    + '<div style="width:100%;height:8px;background:rgba(0,0,0,.1);border-radius:4px;margin-top:4px;overflow:hidden;">'
+    + '<div style="height:100%;width:' + mood + '%;background:' + barColor + ';border-radius:4px;transition:width .5s;"></div></div>'
+    + '<div style="font-size:11px;color:#666;margin-top:2px;">' + bonusTxt + ' 摸摸牠、餵喜歡的食物會開心喔！</div>';
 }
 
 
+/* ===== 進化圖鑑 ===== */
 function openDex() {
   let m = document.getElementById("dex-modal");
   if (m) m.remove();
@@ -2438,185 +2445,38 @@ function openDex() {
   m.id = "dex-modal";
   m.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:10001;display:flex;justify-content:center;align-items:center;padding:16px;";
   let unlocked = 0, total = 0;
-  const rows = ANIMALS.map(a => {
+  let rows = "";
+  ANIMALS.forEach(a => {
     const stage = getEvolutionStage(a.audioKey);
-    const cells = a.evolutions.map((evo, si) => {
+    let cells = "";
+    a.evolutions.forEach((evo, si) => {
       total++;
       const has = stage >= si;
       if (has) unlocked++;
-      return `<div style="text-align:center;">
-        <div style="width:64px;height:64px;margin:0 auto;background:${has ? "#fff" : "#e0e0e0"};border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;${has ? "" : "filter:grayscale(100%) brightness(0.6);"}">
-          ${has ? `<img src="${evo.img}" style="width:56px;height:56px;object-fit:contain;" onerror="this.outerHTML='${a.icon}'">` : '<span style="font-size:32px;">❓</span>'}
-        </div>
-        <div style="font-size:11px;font-weight:bold;margin-top:2px;color:${has ? "#333" : "#999"};">${has ? evo.name : "???"}</div>
-        <div style="font-size:10px;color:#999;">${si === 0 ? "第1階" : si === 1 ? "第2階" : "最終階"}</div>
-      </div>`;
-    }).join("");
-    return `<div style="background:#fff;border-radius:16px;padding:12px;margin-bottom:10px;">
-      <div style="font-size:15px;font-weight:bold;margin-bottom:8px;">${a.icon} ${a.kind} <span style="font-size:12px;color:#999;">${a.skillName}</span></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">${cells}</div>
-    </div>`;
-  }).join("");
-  const pct = Math.round(unlocked / total * 100);
-  m.innerHTML = `<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;">
-    <h2 style="margin:0;font-size:20px;text-align:center;">📖 進化圖鑑</h2>
-    <div style="text-align:center;margin:8px 0;">
-      <div style="font-size:14px;font-weight:bold;color:#4527a0;">收集進度 ${unlocked}/${total} (${pct}%)</div>
-      <div style="height:12px;background:#e0e0e0;border-radius:6px;margin-top:6px;overflow:hidden;">
-        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#7e57c2,#5c6bc0);border-radius:6px;transition:width .5s;"></div>
-      </div>
-    </div>
-    ${rows}
-    <button onclick="document.getElementById('dex-modal').remove();" style="margin-top:8px;width:100%;padding:12px;background:#9e9e9e;color:#fff;border:none;border-radius:12px;font-size:14px;cursor:pointer;">關閉</button>
-  </div>`;
-  document.body.appendChild(m);
-  m.addEventListener("click", (e) => { if (e.target === m) m.remove(); });
-}
-
-
-/* ===== 場景管理 ===== */
-function goScene(name) {
-  document.querySelectorAll(".scene").forEach(s => s.classList.remove("active"));
-  const t = document.getElementById("scene-" + name);
-  if (t) t.classList.add("active");
-  if (name === "quiz") {
-    // 進入測驗場景時，把測驗區移過來
-    const qc = document.getElementById("quiz-container");
-    const qa = document.getElementById("quiz-area");
-    if (qc && qa && qa.parentNode !== qc) qc.appendChild(qa);
-    if (typeof startQuiz === "function") startQuiz();
-  }
-  window.scrollTo(0, 0);
-}
-/* ===== 農場裝飾品 ===== */
-const DECO_ITEMS = [
-  { id: "tree", icon: "🌳", name: "大樹", price: 100 },
-  { id: "flower", icon: "🌷", name: "鬱金香", price: 30 },
-  { id: "sunflower", icon: "🌻", name: "向日葵", price: 40 },
-  { id: "pond", icon: "🏞️", name: "小池塘", price: 200 },
-  { id: "house", icon: "🏠", name: "小木屋", price: 500 },
-  { id: "windmill", icon: "🎡", name: "風車", price: 300 },
-  { id: "fountain", icon: "⛲", name: "噴泉", price: 350 },
-  { id: "bench", icon: "🪑", name: "長椅", price: 80 },
-  { id: "lamp", icon: "🏮", name: "燈籠", price: 60 },
-  { id: "mushroom", icon: "🍄", name: "蘑菇", price: 25 },
-];
-function getDeco() {
-  try { return JSON.parse(localStorage.getItem("wws_deco") || "[]"); }
-  catch (e) { return []; }
-}
-function saveDeco(d) { localStorage.setItem("wws_deco", JSON.stringify(d)); }
-function renderDeco() {
-  const layer = document.getElementById("deco-layer");
-  if (!layer) return;
-  layer.innerHTML = "";
-  getDeco().forEach((d, i) => {
-    const item = DECO_ITEMS.find(x => x.id === d.id);
-    if (!item) return;
-    const el = document.createElement("div");
-    el.className = "deco-item";
-    el.textContent = item.icon;
-    el.style.left = (d.x || 20) + "%";
-    el.style.top = (d.y || 60) + "%";
-    el.style.fontSize = (d.s || 48) + "px";
-    el.dataset.idx = i;
-    makeDraggable(el, (x, y) => {
-      const arr = getDeco();
-      arr[i].x = x; arr[i].y = y;
-      saveDeco(arr);
+      const stageName = si === 0 ? "第1階" : si === 1 ? "第2階" : "最終階";
+      const imgHtml = has
+        ? '<img src="' + evo.img + '" style="width:56px;height:56px;object-fit:contain;" onerror="this.outerHTML=\'' + a.icon + '\'">'
+        : '<span style="font-size:32px;">❓</span>';
+      cells += '<div style="text-align:center;">'
+        + '<div style="width:64px;height:64px;margin:0 auto;background:' + (has ? "#fff" : "#e0e0e0") + ';border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;' + (has ? "" : "filter:grayscale(100%) brightness(0.6);") + '">' + imgHtml + '</div>'
+        + '<div style="font-size:11px;font-weight:bold;margin-top:2px;color:' + (has ? "#333" : "#999") + ';">' + (has ? evo.name : "???") + '</div>'
+        + '<div style="font-size:10px;color:#999;">' + stageName + '</div></div>';
     });
-    // 長按刪除
-    let pressTimer;
-    el.addEventListener("touchstart", () => { pressTimer = setTimeout(() => removeDeco(i), 800); }, {passive:true});
-    el.addEventListener("touchend", () => clearTimeout(pressTimer));
-    layer.appendChild(el);
+    rows += '<div style="background:#fff;border-radius:16px;padding:12px;margin-bottom:10px;">'
+      + '<div style="font-size:15px;font-weight:bold;margin-bottom:8px;">' + a.icon + ' ' + a.kind + ' <span style="font-size:12px;color:#999;">' + a.skillName + '</span></div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">' + cells + '</div></div>';
   });
-}
-function makeDraggable(el, onDrop) {
-  let sx, sy, ox, oy, dragging = false;
-  const parent = el.parentNode.getBoundingClientRect();
-  function start(e) {
-    dragging = true;
-    const t = e.touches ? e.touches[0] : e;
-    sx = t.clientX; sy = t.clientY;
-    const r = el.getBoundingClientRect();
-    const pr = el.parentNode.getBoundingClientRect();
-    ox = r.left - pr.left; oy = r.top - pr.top;
-    el.style.zIndex = 100;
-  }
-  function move(e) {
-    if (!dragging) return;
-    e.preventDefault();
-    const t = e.touches ? e.touches[0] : e;
-    const pr = el.parentNode.getBoundingClientRect();
-    let nx = ox + (t.clientX - sx), ny = oy + (t.clientY - sy);
-    nx = Math.max(0, Math.min(pr.width - 40, nx));
-    ny = Math.max(0, Math.min(pr.height - 40, ny));
-    el.style.left = nx + "px"; el.style.top = ny + "px";
-    el.style.transform = "none";
-  }
-  function end(e) {
-    if (!dragging) return;
-    dragging = false;
-    el.style.zIndex = "";
-    const pr = el.parentNode.getBoundingClientRect();
-    const r = el.getBoundingClientRect();
-    const xPct = Math.round((r.left - pr.left) / pr.width * 100);
-    const yPct = Math.round((r.top - pr.top) / pr.height * 100);
-    el.style.left = xPct + "%"; el.style.top = yPct + "%";
-    if (onDrop) onDrop(xPct, yPct);
-  }
-  el.addEventListener("mousedown", start);
-  el.addEventListener("touchstart", start, {passive:true});
-  document.addEventListener("mousemove", move);
-  document.addEventListener("touchmove", move, {passive:false});
-  document.addEventListener("mouseup", end);
-  document.addEventListener("touchend", end);
-}
-function removeDeco(i) {
-  if (!confirm("要移除這個裝飾嗎？（不退點數）")) return;
-  const arr = getDeco();
-  arr.splice(i, 1);
-  saveDeco(arr);
-  renderDeco();
-}
-function buyDeco(id) {
-  const item = DECO_ITEMS.find(x => x.id === id);
-  if (kidPoints < item.price) { alert(`點數不夠！${item.name}要 ${item.price} 點，你有 ${kidPoints} 點。`); return; }
-  kidPoints -= item.price;
-  lsSet(LS_KEYS.points, kidPoints);
-  const arr = getDeco();
-  arr.push({ id, x: 10 + Math.random() * 70, y: 55 + Math.random() * 25, s: 48 });
-  saveDeco(arr);
-  renderDeco();
-  if (typeof updatePointsDisplay === "function") updatePointsDisplay();
-  if (typeof updateRpgHud === "function") updateRpgHud();
-  alert(`🎉 買到 ${item.icon} ${item.name}！拖曳可以移動位置，長按可以移除。`);
-  openDecoShop();
-}
-function openDecoShop() {
-  let m = document.getElementById("deco-modal");
-  if (m) m.remove();
-  m = document.createElement("div");
-  m.id = "deco-modal";
-  m.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:10001;display:flex;justify-content:center;align-items:center;padding:16px;";
-  const owned = getDeco().length;
-  const items = DECO_ITEMS.map(d => `
-    <div style="background:#fff;border:2px solid #e0e0e0;border-radius:16px;padding:12px;text-align:center;">
-      <div style="font-size:44px;">${d.icon}</div>
-      <div style="font-size:14px;font-weight:bold;">${d.name}</div>
-      <div style="font-size:13px;color:#f57f17;font-weight:bold;">🪙 ${d.price}點</div>
-      <button onclick="buyDeco('${d.id}')" style="margin-top:8px;padding:8px 16px;font-size:13px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#7e57c2,#5c6bc0);border:none;border-radius:12px;cursor:pointer;">購買</button>
-    </div>`).join("");
-  m.innerHTML = `<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;">
-    <h2 style="margin:0;font-size:20px;text-align:center;">🏡 農場布置</h2>
-    <p style="text-align:center;font-size:13px;color:#666;">已放置 ${owned} 個裝飾｜💰 ${kidPoints} 點</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${items}</div>
-    <button onclick="document.getElementById('deco-modal').remove();" style="margin-top:12px;width:100%;padding:12px;background:#9e9e9e;color:#fff;border:none;border-radius:12px;font-size:14px;cursor:pointer;">關閉</button>
-  </div>`;
+  const pct = total > 0 ? Math.round(unlocked / total * 100) : 0;
+  m.innerHTML = '<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;">'
+    + '<h2 style="margin:0;font-size:20px;text-align:center;">📖 進化圖鑑</h2>'
+    + '<div style="text-align:center;margin:8px 0;">'
+    + '<div style="font-size:14px;font-weight:bold;color:#4527a0;">收集進度 ' + unlocked + '/' + total + ' (' + pct + '%)</div>'
+    + '<div style="height:12px;background:#e0e0e0;border-radius:6px;margin-top:6px;overflow:hidden;">'
+    + '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#7e57c2,#5c6bc0);border-radius:6px;transition:width .5s;"></div>'
+    + '</div></div>'
+    + rows
+    + '<button onclick="document.getElementById(\'dex-modal\').remove();" style="margin-top:8px;width:100%;padding:12px;background:#9e9e9e;color:#fff;border:none;border-radius:12px;font-size:14px;cursor:pointer;">關閉</button></div>';
   document.body.appendChild(m);
   m.addEventListener("click", (e) => { if (e.target === m) m.remove(); });
 }
-// 載入時渲染裝飾
-setTimeout(() => { if (typeof renderDeco === "function") renderDeco(); }, 1500);
 

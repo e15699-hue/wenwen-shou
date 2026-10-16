@@ -134,6 +134,12 @@
                  font-size: 14px; font-weight: bold; border-radius: 50%;
                  min-width: 24px; height: 24px; line-height: 24px;
                  text-align: center; padding: 0 4px; vertical-align: middle; }
+  .xp-bar { width: 120px; height: 8px; background: #eee; border-radius: 4px;
+            margin: 4px auto; overflow: hidden; }
+  .xp-fill { height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A);
+             border-radius: 4px; transition: width .3s; }
+  #animal-level { text-align: center; font-size: 14px; color: #ff9800;
+                  font-weight: bold; margin: 8px 0; }
   .grade-btns { display: flex; gap: 10px; margin: 12px 0; }
   .grade-btn { flex: 1; padding: 16px 8px; border-radius: 16px; border: 3px solid #e0e0e0;
                background: #fafafa; font-size: 17px; font-weight: bold; cursor: pointer;
@@ -299,6 +305,7 @@
   <span>🪙 我的點數</span>
   <span class="pts"><span id="kid-points">0</span> 點</span>
 </div>
+<div id="animal-level"></div>
 <div id="kid-rewards"></div>
 
 <!-- ===== 小孩：徽章展示 ===== -->
@@ -1083,6 +1090,7 @@ document.addEventListener("DOMContentLoaded", () => {
     b.style.maxHeight = "none";
   });
   updateErrorBadge();
+  updateAnimalLevelDisplay();
 });
 
 function friendlyErr(e) {
@@ -1224,6 +1232,7 @@ function setAnimal(idx) {
   currentAnimal = ANIMALS[idx];
   try { localStorage.setItem("wws_animal", JSON.stringify(currentAnimal)); } catch (e) {}
   applyAnimal();
+  updateAnimalLevelDisplay();
   closeAnimalPicker();
   // 用新選的小動物的預錄聲音打招呼（失敗時用瀏覽器語音）
   playAnimalSound("greeting", currentAnimal.greeting + "以後都由我陪你玩喔！");
@@ -1249,7 +1258,8 @@ function openAnimalPicker() {
     const b = document.createElement("button");
     b.style.cssText = "font-size:40px;padding:12px;border:3px solid #eee;border-radius:16px;background:#fff;cursor:pointer;";
     if (getAnimal().name === a.name) b.style.borderColor = "#4CAF50";
-    b.innerHTML = a.icon + '<div style="font-size:14px;margin-top:4px;">' + a.name + '</div><div style="font-size:12px;color:#999;">' + a.kind + '</div>';
+    const lvl = getAnimalLevel(a.audioKey);
+    b.innerHTML = a.icon + '<div style="font-size:14px;margin-top:4px;">' + a.name + '</div><div style="font-size:12px;color:#999;">' + a.kind + '</div><div style="font-size:11px;color:#ff9800;font-weight:bold;">Lv.' + lvl + ' ' + getLevelTitle(lvl) + '</div>';
     b.onclick = () => setAnimal(i);
     grid.appendChild(b);
   });
@@ -1597,6 +1607,8 @@ async function submitQuizAnswer(selectedOpt) {
     });
     launchConfetti();
     dashStars += 1; updateDash();
+    // 小動物獲得經驗值
+    addAnimalXP(getAnimal().audioKey, 10);
   } else {
     quizTries++;
     quizStreak = 0;
@@ -1762,6 +1774,7 @@ function checkErrorAnswer(selected, btn) {
     });
     launchConfetti();
     addPoints(5); // 複習答對給 5 點
+    addAnimalXP(getAnimal().audioKey, 5); // 小動物獲得經驗值
   } else {
     errorTries++;
     if (errorTries >= 2) {
@@ -1817,6 +1830,53 @@ function lsGet(k, def) {
   catch (e) { return def; }
 }
 function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+/* ===== 小動物進化系統 ===== */
+const XP_PER_LEVEL = 100;
+function getAnimalXPData() { return lsGet("wws_xp", {}); }
+function getAnimalXP(audioKey) {
+  const data = getAnimalXPData();
+  return data[audioKey] || 0;
+}
+function getAnimalLevel(audioKey) {
+  return Math.floor(getAnimalXP(audioKey) / XP_PER_LEVEL) + 1;
+}
+function getLevelTitle(level) {
+  if (level >= 10) return "傳說";
+  if (level >= 8) return "大師";
+  if (level >= 5) return "高手";
+  if (level >= 3) return "小達人";
+  return "新手";
+}
+function addAnimalXP(audioKey, amount) {
+  const data = getAnimalXPData();
+  const oldLevel = getAnimalLevel(audioKey);
+  data[audioKey] = (data[audioKey] || 0) + amount;
+  lsSet("wws_xp", data);
+  const newLevel = getAnimalLevel(audioKey);
+  updateAnimalLevelDisplay();
+  // 升級慶祝
+  if (newLevel > oldLevel) {
+    const a = ANIMALS.find(x => x.audioKey === audioKey);
+    setTimeout(() => {
+      const msg = `🎉 恭喜！${a.name}升級到 Lv.${newLevel}「${getLevelTitle(newLevel)}」了！`;
+      // 用對話框顯示升級
+      if (confirm(msg + "\n要繼續玩嗎？")) {}
+      speak(`太棒了！${a.name}升級了！現在是${getLevelTitle(newLevel)}！`);
+      launchConfetti();
+    }, 800);
+  }
+}
+function updateAnimalLevelDisplay() {
+  const a = getAnimal();
+  const level = getAnimalLevel(a.audioKey);
+  const xp = getAnimalXP(a.audioKey);
+  const progress = (xp % XP_PER_LEVEL) / XP_PER_LEVEL * 100;
+  const el = document.getElementById("animal-level");
+  if (el) {
+    el.innerHTML = `Lv.${level} ${getLevelTitle(level)} <div class="xp-bar"><div class="xp-fill" style="width:${progress}%"></div></div>`;
+  }
+}
 
 /* ===== 錯題本 ===== */
 function getErrors() { return lsGet(LS_KEYS.errors, []); }

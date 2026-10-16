@@ -151,10 +151,107 @@
   .quiz-feedback.no { color: #d63031; }
   .quiz-hint-box { background: #e8f4ff; border: 2px solid #90cdf4; border-radius: 12px;
                     padding: 12px; margin: 10px 0; font-size: 16px; line-height: 1.7; }
+  /* ===== 獎勵系統 ===== */
+  .points-bar { background: linear-gradient(135deg, #ffd166, #ffbe3d);
+                border-radius: 16px; padding: 12px 16px; margin: 10px 0;
+                display: flex; justify-content: space-between; align-items: center;
+                box-shadow: 0 4px 12px rgba(255,209,102,.35); }
+  .points-bar .pts { font-size: 22px; font-weight: bold; color: #7a5b00; }
+  .reward-progress { background: #fff; border-radius: 14px; padding: 12px;
+                     margin: 10px 0; border: 2px solid #ffd166; }
+  .reward-progress .rname { font-size: 16px; font-weight: bold; margin-bottom: 6px; }
+  .reward-progress .rbar { background: #f0f0f0; border-radius: 10px; height: 18px;
+                           overflow: hidden; }
+  .reward-progress .rfill { background: linear-gradient(90deg, #4ecdc4, #45b8ae);
+                            height: 100%; border-radius: 10px; transition: width .5s ease;
+                            display: flex; align-items: center; justify-content: flex-end;
+                            padding-right: 6px; font-size: 11px; color: #fff; font-weight: bold; }
+  .reward-progress .rtext { font-size: 14px; color: #666; margin-top: 6px; }
+  .reward-progress.done { border-color: #4ecdc4; background: #e8faf8; }
+  .reward-progress.done .rtext { color: #1a8a82; font-weight: bold; }
+  /* 徽章 */
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; justify-content: center; }
+  .badge { width: 64px; height: 64px; border-radius: 50%; background: #f0f0f0;
+           display: flex; align-items: center; justify-content: center;
+           font-size: 28px; border: 3px solid #e0e0e0; position: relative; }
+  .badge.earned { background: linear-gradient(135deg, #fff7e6, #ffe8b3);
+                  border-color: #ffd166; box-shadow: 0 3px 10px rgba(255,209,102,.4);
+                  animation: pop .4s ease; }
+  .badge .bname { position: absolute; bottom: -18px; font-size: 10px; color: #666;
+                  white-space: nowrap; }
+  .badge.locked { filter: grayscale(1); opacity: .5; }
+  /* 每日任務 */
+  .daily-task { background: linear-gradient(135deg, #e8f4ff, #dbeafe);
+                border: 2px solid #90cdf4; border-radius: 14px; padding: 12px;
+                margin: 10px 0; }
+  .daily-task .dt-title { font-size: 16px; font-weight: bold; color: #2b6cb0; }
+  .daily-task .dt-progress { font-size: 14px; color: #666; margin-top: 4px; }
+  .daily-task.done { background: linear-gradient(135deg, #e8faf8, #d4f5e9);
+                     border-color: #4ecdc4; }
+  /* 家長：獎勵列表 */
+  .reward-item { background: #fafafa; border: 2px solid #e0e0e0; border-radius: 12px;
+                 padding: 10px 12px; margin: 8px 0; display: flex;
+                 align-items: center; justify-content: space-between; }
+  .reward-item .rinfo { flex: 1; }
+  .reward-item .rname2 { font-size: 16px; font-weight: bold; }
+  .reward-item .rpts { font-size: 14px; color: #b8860b; }
+  .reward-item .rdel { background: #ff6b6b; color: #fff; border: none;
+                       border-radius: 8px; padding: 6px 12px; font-size: 13px;
+                       cursor: pointer; }
+  .template-btns { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+  .template-btn { background: #f0f7ff; border: 2px solid #90cdf4; border-radius: 20px;
+                  padding: 8px 14px; font-size: 14px; cursor: pointer; color: #2b6cb0; }
+  .template-btn:active { transform: scale(.95); }
+  /* 家長待辦 */
+  .todo-item { background: #fff3cd; border: 2px solid #ffd166; border-radius: 12px;
+               padding: 12px; margin: 8px 0; }
+  .todo-item .t-text { font-size: 16px; font-weight: bold; }
+  .todo-item .t-time { font-size: 13px; color: #888; }
+  .todo-item.done { background: #e8faf8; border-color: #4ecdc4; opacity: .7; }
+  /* ===== 假登入：身份選擇 ===== */
+  #login-screen { text-align: center; padding: 40px 20px; }
+  #login-screen .monster-big { font-size: 100px; animation: bounce 2s ease-in-out infinite;
+                                filter: drop-shadow(0 6px 10px rgba(0,0,0,.15)); }
+  #login-screen h2 { font-size: 24px; color: #ff6b6b; margin: 16px 0 8px; }
+  #login-screen p { color: #666; font-size: 16px; margin-bottom: 24px; }
+  .role-btns { display: flex; gap: 16px; justify-content: center; }
+  .role-btn { flex: 1; max-width: 220px; padding: 28px 16px; border-radius: 24px;
+              border: 4px solid #e0e0e0; background: #fff; cursor: pointer;
+              transition: all .2s; box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+  .role-btn:active { transform: scale(.96); }
+  .role-btn .ricon { font-size: 56px; display: block; margin-bottom: 8px; }
+  .role-btn .rtext { font-size: 20px; font-weight: bold; }
+  .role-btn.kid { border-color: #ffd166; }
+  .role-btn.kid .rtext { color: #b8860b; }
+  .role-btn.parent { border-color: #90cdf4; }
+  .role-btn.parent .rtext { color: #2b6cb0; }
+  .role-switch { text-align: center; margin: 12px 0; }
+  .role-switch button { background: #f0f0f0; color: #666; font-size: 14px;
+                        padding: 8px 20px; box-shadow: none; font-weight: normal; }
 </style>
 </head>
 <body>
 
+<!-- ===== 假登入：身份選擇 ===== -->
+<div id="login-screen">
+  <div class="monster-big">🦖</div>
+  <h2>問問獸教學系統</h2>
+  <p>請選擇你的身份</p>
+  <div class="role-btns">
+    <div class="role-btn kid" onclick="loginAs('kid')">
+      <span class="ricon">🧒</span>
+      <span class="rtext">我是小朋友</span>
+    </div>
+    <div class="role-btn parent" onclick="loginAs('parent')">
+      <span class="ricon">👨‍👩‍👧</span>
+      <span class="rtext">我是爸爸媽媽</span>
+    </div>
+  </div>
+  <p class="hint" style="margin-top:24px;">PoC 測試版 · 不用真的登入，點一下就好</p>
+</div>
+
+<!-- ===== 學童區 ===== -->
+<div id="kid-zone" style="display:none;">
 <h1>🦖 問問獸</h1>
 <div class="monster">🦖</div>
 <p class="tagline">遇到不會的題目，拍照問我就對了！<br>沒事也可以來玩隨機出題，越玩越厲害！💪</p>
@@ -163,6 +260,25 @@
 <div class="mode-tabs">
   <div class="mode-tab active" id="tab-ask" onclick="switchMode('ask')">🦖<br>問問獸</div>
   <div class="mode-tab" id="tab-quiz" onclick="switchMode('quiz')">🎲<br>隨機出題</div>
+</div>
+
+<!-- ===== 小孩：點數與獎勵進度 ===== -->
+<div class="points-bar">
+  <span>🪙 我的點數</span>
+  <span class="pts"><span id="kid-points">0</span> 點</span>
+</div>
+<div id="kid-rewards"></div>
+
+<!-- ===== 小孩：徽章展示 ===== -->
+<div class="card" id="badge-card" style="text-align:center;">
+  <h3 style="font-size:17px;">🏅 我的徽章</h3>
+  <div class="badge-row" id="badge-row"></div>
+</div>
+
+<!-- ===== 小孩：每日任務 ===== -->
+<div class="daily-task" id="daily-task">
+  <div class="dt-title">📅 今日任務：完成 1 輪隨機出題</div>
+  <div class="dt-progress" id="daily-progress">進度：0 / 1</div>
 </div>
 
 <!-- ===== 小孩主介面：問問獸 ===== -->
@@ -244,13 +360,23 @@
 </div>
 </div><!-- /mode-quiz -->
 
-<!-- ===== 家長設定區（收合） ===== -->
+<div class="role-switch">
+  <button onclick="loginAs('parent')">👨‍👩‍👧 切換到家長區</button>
+</div>
+</div><!-- /kid-zone -->
+
+<!-- ===== 家長區 ===== -->
+<div id="parent-zone" style="display:none;">
+<h1>👨‍👩‍👧 家長區</h1>
+<p class="tagline">設定獎勵、查看學習狀況、管理待辦事項</p>
+
+<div class="role-switch">
+  <button onclick="loginAs('kid')">🧒 切換到學童區</button>
+</div>
+
+<!-- ===== 家長設定區（展開） ===== -->
 <div class="card" id="parent-settings">
-  <div class="collapsible-header" onclick="toggleCollapse('parent-settings-body', this)">
-    <h3 style="margin:0;">👨‍👩‍👧 家長設定區</h3>
-    <span class="arrow">▼</span>
-  </div>
-  <div class="collapsible-body collapsed" id="parent-settings-body">
+  <div id="parent-settings-body">
     <div style="margin-top:12px;">
       <h4>🔑 Gemini API 金鑰</h4>
       <div class="key-row">
@@ -271,6 +397,29 @@
         </div>
         <div id="dash-stuck" style="margin-top:8px;">🎯 卡關紀錄：尚無</div>
       </div>
+    </div>
+    <div style="margin-top:16px;">
+      <h4>🎁 獎勵設定</h4>
+      <p class="hint">設定小孩集滿多少點數可以換什麼。達標時這裡會出現待辦提醒。</p>
+      <div class="template-btns">
+        <span style="font-size:14px;color:#888;">快速新增：</span>
+        <button class="template-btn" onclick="addRewardTemplate('去夜市', 100, '🎪')">🎪 去夜市 (100點)</button>
+        <button class="template-btn" onclick="addRewardTemplate('買一本漫畫', 150, '📚')">📚 漫畫 (150點)</button>
+        <button class="template-btn" onclick="addRewardTemplate('多 30 分鐘 3C 時間', 80, '📱')">📱 3C時間 (80點)</button>
+        <button class="template-btn" onclick="addRewardTemplate('去公園玩', 50, '🛝')">🛝 公園 (50點)</button>
+        <button class="template-btn" onclick="addRewardTemplate('買文具', 60, '✏️')">✏️ 文具 (60點)</button>
+      </div>
+      <div class="key-row" style="margin-top:8px;">
+        <input type="text" id="new-reward-name" placeholder="獎勵名稱，如：去吃冰淇淋" style="flex:2;">
+        <input type="number" id="new-reward-points" placeholder="點數" min="1" style="flex:1;" inputmode="numeric">
+        <button class="btn-teal" onclick="addReward()">新增</button>
+      </div>
+      <div id="reward-list" style="margin-top:8px;"></div>
+    </div>
+    <div style="margin-top:16px;">
+      <h4>📋 待辦事項 <span id="todo-count" style="font-size:13px;color:#ff6b6b;"></span></h4>
+      <p class="hint">小孩達標的獎勵會出現在這裡，完成後按「已完成」。</p>
+      <div id="parent-todos"></div>
     </div>
     <div style="margin-top:16px;">
       <h4>🔊 語音設定</h4>
@@ -295,9 +444,14 @@
       </div>
     </div>
   </div>
-</div>
+</div><!-- /parent-settings -->
 
-<p class="hint" style="text-align:center">PoC 概念驗證版 · 測試「拍照→辨識→三步驟蘇格拉底引導」劇本</p>
+<div class="role-switch">
+  <button onclick="loginAs('kid')">🧒 切換到學童區</button>
+</div>
+</div><!-- /parent-zone -->
+
+<p class="hint" style="text-align:center">PoC 概念驗證版</p>
 
 <script>
 const MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-lite-latest", "gemini-3.5-flash"];  // 輕量省錢優先，503 自動換下一個
@@ -550,11 +704,7 @@ function compressImage(file) {
 async function recognize() {
   if (!key()) {
     document.getElementById("rec-err").innerHTML =
-      "還沒設定金鑰喔！請爸爸媽媽打開下方的「👨‍👩‍👧 家長設定區」幫忙設定。";
-    // 自動展開家長設定區
-    const body = document.getElementById("parent-settings-body");
-    const header = document.querySelector("#parent-settings .collapsible-header");
-    if (body.classList.contains("collapsed")) toggleCollapse("parent-settings-body", header);
+      '還沒設定金鑰喔！請爸爸媽媽切換到「👨‍👩‍👧 家長區」幫忙設定。<br><button class="btn-teal" onclick="loginAs(\'parent\')" style="margin-top:8px;">去家長區設定</button>';
     return;
   }
   // 優先用框選裁切的圖；沒有才用整張上傳圖
@@ -892,6 +1042,34 @@ function toggleMic() {
   try { rec.start(); } catch (e) { recOn = false; }
 }
 
+/* ===== 假登入：身份選擇 ===== */
+let currentRole = null;
+function loginAs(role) {
+  currentRole = role;
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("kid-zone").style.display = role === "kid" ? "block" : "none";
+  document.getElementById("parent-zone").style.display = role === "parent" ? "block" : "none";
+  window.scrollTo(0, 0);
+  if (role === "kid") {
+    // 小孩進入：重新渲染點數和獎勵
+    document.getElementById("kid-points").textContent = kidPoints;
+    renderKidRewards();
+    renderBadges();
+    checkDailyTask();
+  } else {
+    // 家長進入：重新渲染獎勵列表和待辦
+    renderRewardList();
+    renderParentTodos();
+  }
+}
+function logout() {
+  currentRole = null;
+  document.getElementById("login-screen").style.display = "block";
+  document.getElementById("kid-zone").style.display = "none";
+  document.getElementById("parent-zone").style.display = "none";
+  window.scrollTo(0, 0);
+}
+
 /* ===== 模式切換 ===== */
 function switchMode(mode) {
   document.getElementById("tab-ask").classList.toggle("active", mode === "ask");
@@ -957,7 +1135,7 @@ async function startQuiz() {
   if (!quizGrade) return;
   if (!key()) {
     document.getElementById("quiz-err").innerHTML =
-      "還沒設定金鑰喔！請爸爸媽媽打開下方的「👨‍👩‍👧 家長設定區」幫忙設定。";
+      '還沒設定金鑰喔！請爸爸媽媽切換到「👨‍👩‍👧 家長區」幫忙設定。<br><button class="btn-teal" onclick="loginAs(\'parent\')" style="margin-top:8px;">去家長區設定</button>';
     return;
   }
   // 重置
@@ -1086,10 +1264,16 @@ function finishQuiz() {
   r.innerHTML = `<div style="font-size:48px;">${stars}</div>
     <div style="font-size:24px;font-weight:bold;margin:10px 0;">${msg}</div>
     <div style="font-size:18px;">答對 ${okCount} / 5 題，得分 ${quizScore} 分</div>
+    <div style="font-size:16px;color:#b8860b;margin-top:8px;">🪙 +${quizScore} 點已加入！</div>
     <button class="btn-teal" onclick="resetQuiz()" style="margin-top:16px;font-size:18px;">🔄 再玩一次</button>
     <button class="btn-gray" onclick="switchMode('ask')" style="margin-top:8px;">🦖 去問問獸</button>`;
   speak(msg + `你答對了${okCount}題，得到${quizScore}分！`);
   launchConfetti();
+  // 點數、徽章、每日任務
+  addPoints(quizScore);
+  if (okCount === 5) earnBadge("perfect");
+  if (quizResults.length) earnBadge("first");
+  markDailyQuizDone();
   // 計入家長儀表板
   dashSolved += okCount;
   updateDash();
@@ -1105,6 +1289,197 @@ function resetQuiz() {
 document.getElementById("quiz-answer").addEventListener("keydown", e => {
   if (e.key === "Enter") submitQuizAnswer();
 });
+
+/* ===== 獎勵系統（localStorage） ===== */
+const LS_KEYS = { points: "wws_points", rewards: "wws_rewards", todos: "wws_todos", badges: "wws_badges", daily: "wws_daily" };
+
+function lsGet(k, def) {
+  try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; }
+  catch (e) { return def; }
+}
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+let kidPoints = lsGet(LS_KEYS.points, 0);
+let rewards = lsGet(LS_KEYS.rewards, []);
+let parentTodos = lsGet(LS_KEYS.todos, []);
+let badges = lsGet(LS_KEYS.badges, []);
+
+const BADGE_DEFS = [
+  { id: "first", icon: "🌱", name: "初試身手", desc: "完成第一輪出題" },
+  { id: "streak3", icon: "🔥", name: "連擊王", desc: "連續答對 3 題" },
+  { id: "perfect", icon: "💯", name: "完美通關", desc: "一輪 5 題全對" },
+  { id: "asker", icon: "🦖", name: "愛發問", desc: "用問問獸解開 3 題" },
+  { id: "hundred", icon: "💪", name: "百點達人", desc: "累積 100 點" },
+  { id: "daily", icon: "📅", name: "天天練習", desc: "完成今日任務" },
+];
+
+function addPoints(n) {
+  kidPoints += n;
+  lsSet(LS_KEYS.points, kidPoints);
+  document.getElementById("kid-points").textContent = kidPoints;
+  checkBadges();
+  checkRewardMilestones();
+  renderKidRewards();
+}
+function earnBadge(id) {
+  if (badges.includes(id)) return;
+  badges.push(id);
+  lsSet(LS_KEYS.badges, badges);
+  const def = BADGE_DEFS.find(b => b.id === id);
+  if (def) {
+    speak(`恭喜獲得徽章「${def.name}」！`);
+    launchConfetti();
+  }
+  renderBadges();
+}
+function checkBadges() {
+  if (kidPoints >= 100) earnBadge("hundred");
+}
+function renderBadges() {
+  const row = document.getElementById("badge-row");
+  if (!row) return;
+  row.innerHTML = "";
+  BADGE_DEFS.forEach(b => {
+    const d = document.createElement("div");
+    const earned = badges.includes(b.id);
+    d.className = "badge " + (earned ? "earned" : "locked");
+    d.innerHTML = b.icon + `<span class="bname">${b.name}</span>`;
+    d.title = b.desc;
+    row.appendChild(d);
+  });
+}
+
+/* --- 獎勵 CRUD --- */
+function saveRewards() { lsSet(LS_KEYS.rewards, rewards); renderRewardList(); renderKidRewards(); }
+function addReward() {
+  const name = document.getElementById("new-reward-name").value.trim();
+  const pts = parseInt(document.getElementById("new-reward-points").value, 10);
+  if (!name || !pts || pts < 1) { alert("請輸入獎勵名稱和點數！"); return; }
+  rewards.push({ id: Date.now(), name, points: pts, icon: "🎁" });
+  document.getElementById("new-reward-name").value = "";
+  document.getElementById("new-reward-points").value = "";
+  saveRewards();
+}
+function addRewardTemplate(name, points, icon) {
+  rewards.push({ id: Date.now(), name, points, icon });
+  saveRewards();
+}
+function delReward(id) {
+  rewards = rewards.filter(r => r.id !== id);
+  saveRewards();
+}
+function renderRewardList() {
+  const el = document.getElementById("reward-list");
+  if (!el) return;
+  if (!rewards.length) { el.innerHTML = '<p class="hint">還沒設定獎勵，用上方快速新增或自訂一個吧！</p>'; return; }
+  el.innerHTML = "";
+  rewards.forEach(r => {
+    const d = document.createElement("div");
+    d.className = "reward-item";
+    d.innerHTML = `<div class="rinfo"><div class="rname2">${r.icon} ${esc(r.name)}</div>
+      <div class="rpts">${r.points} 點可兌換</div></div>
+      <button class="rdel" onclick="delReward(${r.id})">刪除</button>`;
+    el.appendChild(d);
+  });
+}
+
+/* --- 小孩視角：獎勵進度 --- */
+function renderKidRewards() {
+  const el = document.getElementById("kid-rewards");
+  if (!el) return;
+  el.innerHTML = "";
+  if (!rewards.length) {
+    el.innerHTML = '<p class="hint" style="text-align:center;">還沒有獎勵目標，請爸爸媽媽在「家長設定區」設定喔！</p>';
+    return;
+  }
+  // 找出下一個未達成的獎勵
+  const sorted = [...rewards].sort((a, b) => a.points - b.points);
+  sorted.forEach(r => {
+    const done = kidPoints >= r.points;
+    const pct = Math.min(100, Math.round(kidPoints / r.points * 100));
+    const d = document.createElement("div");
+    d.className = "reward-progress" + (done ? " done" : "");
+    d.innerHTML = `<div class="rname">${r.icon} ${esc(r.name)}</div>
+      <div class="rbar"><div class="rfill" style="width:${pct}%">${pct}%</div></div>
+      <div class="rtext">${done ? "🎉 達標了！快叫爸爸媽媽兌現！" : `再 ${r.points - kidPoints} 點就能兌換！`}</div>`;
+    el.appendChild(d);
+  });
+}
+
+/* --- 達標檢測 → 家長待辦 --- */
+function checkRewardMilestones() {
+  rewards.forEach(r => {
+    if (kidPoints >= r.points) {
+      const exists = parentTodos.some(t => t.rewardId === r.id && !t.done);
+      if (!exists) {
+        parentTodos.push({
+          id: Date.now(), rewardId: r.id,
+          text: `🎁 小孩集滿 ${r.points} 點了！該兌現「${r.name}」囉！`,
+          time: new Date().toLocaleString("zh-TW"),
+          done: false
+        });
+        lsSet(LS_KEYS.todos, parentTodos);
+        renderParentTodos();
+        speak(`太棒了！你集滿${r.points}點，可以換${r.name}了！快告訴爸爸媽媽！`);
+      }
+    }
+  });
+}
+function renderParentTodos() {
+  const el = document.getElementById("parent-todos");
+  if (!el) return;
+  const pending = parentTodos.filter(t => !t.done);
+  const countEl = document.getElementById("todo-count");
+  if (countEl) countEl.textContent = pending.length ? `(${pending.length} 待辦)` : "";
+  if (!parentTodos.length) { el.innerHTML = '<p class="hint">目前沒有待辦事項。</p>'; return; }
+  el.innerHTML = "";
+  [...parentTodos].reverse().forEach(t => {
+    const d = document.createElement("div");
+    d.className = "todo-item" + (t.done ? " done" : "");
+    d.innerHTML = `<div class="t-text">${esc(t.text)}</div>
+      <div class="t-time">${esc(t.time)}</div>` +
+      (t.done ? '<div style="color:#1a8a82;">✅ 已完成</div>'
+              : `<button class="btn-teal" onclick="completeTodo(${t.id})" style="margin-top:8px;">✅ 已完成兌現</button>`);
+    el.appendChild(d);
+  });
+}
+function completeTodo(id) {
+  const t = parentTodos.find(x => x.id === id);
+  if (t) { t.done = true; lsSet(LS_KEYS.todos, parentTodos); renderParentTodos(); }
+}
+
+/* --- 每日任務 --- */
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function checkDailyTask() {
+  const d = lsGet(LS_KEYS.daily, {});
+  const done = d.date === todayStr() && d.quizDone;
+  const el = document.getElementById("daily-task");
+  const pEl = document.getElementById("daily-progress");
+  if (!el) return;
+  if (done) {
+    el.classList.add("done");
+    if (pEl) pEl.textContent = "進度：1 / 1 ✅ 完成！";
+  } else {
+    el.classList.remove("done");
+    if (pEl) pEl.textContent = "進度：0 / 1";
+  }
+}
+function markDailyQuizDone() {
+  lsSet(LS_KEYS.daily, { date: todayStr(), quizDone: true });
+  checkDailyTask();
+  earnBadge("daily");
+  addPoints(20);  // 每日任務獎勵 20 點
+}
+
+/* --- 初始化 --- */
+(function initRewardSystem() {
+  document.getElementById("kid-points").textContent = kidPoints;
+  renderBadges();
+  renderRewardList();
+  renderKidRewards();
+  renderParentTodos();
+  checkDailyTask();
+})();
 </script>
 </body>
 </html>

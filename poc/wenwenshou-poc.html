@@ -119,12 +119,17 @@
   .say-row button { font-size: 16px; }
   .bubble { font-size: 19px; }
   /* ===== 隨機出題遊戲區 ===== */
-  .mode-tabs { display: flex; gap: 10px; margin: 0 0 4px; }
-  .mode-tab { flex: 1; text-align: center; padding: 14px 8px; border-radius: 16px;
-              background: #f0f0f0; color: #888; font-size: 17px; font-weight: bold;
-              cursor: pointer; transition: all .2s; border: 3px solid transparent; }
+  .mode-tabs { display: flex; gap: 12px; margin: 12px 0; }
+  .mode-tab { flex: 1; text-align: center; padding: 20px 8px; border-radius: 20px;
+              background: #f0f0f0; color: #888; font-size: 19px; font-weight: bold;
+              cursor: pointer; transition: all .2s; border: 4px solid transparent;
+              box-shadow: 0 2px 8px rgba(0,0,0,.06); }
   .mode-tab.active { background: #fff; color: #ff6b6b; border-color: #ff6b6b;
-                     box-shadow: 0 4px 12px rgba(255,107,107,.25); }
+                     box-shadow: 0 6px 16px rgba(255,107,107,.3);
+                     transform: scale(1.03); }
+  .mode-tab .mdesc { display: block; font-size: 13px; font-weight: normal;
+                     color: #999; margin-top: 4px; }
+  .mode-tab.active .mdesc { color: #ff8e8e; }
   .grade-btns { display: flex; gap: 10px; margin: 12px 0; }
   .grade-btn { flex: 1; padding: 16px 8px; border-radius: 16px; border: 3px solid #e0e0e0;
                background: #fafafa; font-size: 17px; font-weight: bold; cursor: pointer;
@@ -258,8 +263,8 @@
 
 <!-- ===== 模式切換 ===== -->
 <div class="mode-tabs">
-  <div class="mode-tab active" id="tab-ask" onclick="switchMode('ask')">🦖<br>問問獸</div>
-  <div class="mode-tab" id="tab-quiz" onclick="switchMode('quiz')">🎲<br>隨機出題</div>
+  <div class="mode-tab active" id="tab-ask" onclick="switchMode('ask')">🦖 問問獸<span class="mdesc">拍照問不會的題目</span></div>
+  <div class="mode-tab" id="tab-quiz" onclick="switchMode('quiz')">🎲 隨機出題<span class="mdesc">選年級玩數學遊戲</span></div>
 </div>
 
 <!-- ===== 小孩：點數與獎勵進度 ===== -->

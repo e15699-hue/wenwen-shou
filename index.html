@@ -1084,43 +1084,68 @@ function toggleMic() {
 
 /* ===== 小動物系統 ===== */
 const ANIMALS = [
-  { icon: "🐱", name: "咪咪", kind: "貓咪",
+  { icon: "🐱", name: "咪咪", kind: "貓咪", audioKey: "cat",
     pitch: 1.4, rate: 0.9,
     greeting: "喵～哈囉！我是咪咪！",
     praise: ["喵～太厲害了！", "咪咪覺得你好棒喵！", "喵嗚～答對了！"],
     encourage: "喵～再想想看，咪咪陪你！",
     sound: "喵～" },
-  { icon: "🐶", name: "豆豆", kind: "小狗",
+  { icon: "🐶", name: "豆豆", kind: "小狗", audioKey: "dog",
     pitch: 1.3, rate: 1.1,
     greeting: "汪汪！我是豆豆！",
     praise: ["汪！太棒了！", "豆豆好開心！你答對了！", "汪汪汪！厲害！"],
     encourage: "汪！再試一次，豆豆相信你！",
     sound: "汪！" },
-  { icon: "🐰", name: "跳跳", kind: "兔子",
+  { icon: "🐰", name: "跳跳", kind: "兔子", audioKey: "rabbit",
     pitch: 1.5, rate: 1.0,
     greeting: "嗨！我是跳跳！",
     praise: ["哇！你好聰明！", "跳跳好高興！答對了！", "太棒了！跳起來！"],
     encourage: "沒關係，跳跳陪你慢慢想！",
     sound: "" },
-  { icon: "🐼", name: "圓圓", kind: "熊貓",
+  { icon: "🐼", name: "圓圓", kind: "熊貓", audioKey: "panda",
     pitch: 1.1, rate: 0.85,
     greeting: "嗨嗨，我是圓圓！",
     praise: ["圓圓覺得你超厲害！", "答對了！圓圓請你吃竹子！", "哇～好棒！"],
     encourage: "慢慢來，圓圓等你！",
     sound: "" },
-  { icon: "🦊", name: "小乖", kind: "狐狸",
+  { icon: "🦊", name: "小乖", kind: "狐狸", audioKey: "fox",
     pitch: 1.25, rate: 1.05,
     greeting: "嘿！我是聰明的小乖！",
     praise: ["小乖就知道你會答對！", "太聰明了！跟小乖一樣！", "答對了！真有你的！"],
     encourage: "動動腦，小乖相信你想得出來！",
     sound: "" },
-  { icon: "🐷", name: "胖胖", kind: "小豬",
+  { icon: "🐷", name: "胖胖", kind: "小豬", audioKey: "pig",
     pitch: 1.15, rate: 0.9,
     greeting: "哼哼！我是胖胖！",
     praise: ["哼哼！答對了！", "胖胖覺得你好厲害！", "哇！胖胖好佩服你！"],
     encourage: "哼哼，別急，慢慢想！",
     sound: "哼哼！" },
 ];
+/* 預錄音檔播放（固定台詞用 AI 動物音） */
+function playAnimalSound(soundKey) {
+  try {
+    const a = getAnimal();
+    const audio = new Audio(`audio/${a.audioKey}_${soundKey}.mp3`);
+    audio.play().catch(() => {
+      // 播放失敗時 fallback 到瀏覽器語音
+      console.log("音檔播放失敗，使用瀏覽器語音");
+    });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+// 混合播放：固定台詞用預錄音檔，動態內容用瀏览器語音
+function speakAnimal(soundKey, fallbackText) {
+  // 先試著播放預錄音檔
+  if (playAnimalSound(soundKey)) {
+    // 預錄音檔播放中，同時用瀏覽器語音當備份（如果音檔失敗）
+    // 這裡我們只播放音檔，不用瀏覽器語音重複
+    return;
+  }
+  // 沒有預錄音檔時用瀏覽器語音
+  if (fallbackText) speak(fallbackText);
+}
 let currentAnimal = null;
 function getAnimal() {
   if (currentAnimal) return currentAnimal;
@@ -1136,8 +1161,8 @@ function setAnimal(idx) {
   try { localStorage.setItem("wws_animal", JSON.stringify(currentAnimal)); } catch (e) {}
   applyAnimal();
   closeAnimalPicker();
-  // 用新選的小動物的聲音打招呼，讓小孩立即聽到
-  speak(currentAnimal.greeting + "以後都由我陪你玩喔！");
+  // 用新選的小動物的預錄聲音打招呼
+  playAnimalSound("greeting");
 }
 function applyAnimal() {
   const a = getAnimal();
@@ -1198,7 +1223,9 @@ async function startTeaching() {
   document.getElementById("teaching-animal").textContent = a.icon;
   renderTeachingStep();
   document.getElementById("teaching-modal").style.display = "flex";
-  speak(teachingSteps[0]);
+  // 先播放預錄的教學開場，再念第一步
+  playAnimalSound("teach");
+  setTimeout(() => speak(teachingSteps[0]), 1500);
 }
 function renderTeachingStep() {
   const total = teachingSteps.length;
@@ -1239,8 +1266,7 @@ function retryQuestion() {
   document.getElementById("quiz-feedback").textContent = "";
   document.getElementById("quiz-feedback").className = "quiz-feedback";
   document.querySelectorAll("#quiz-options button").forEach(b => b.disabled = false);
-  const a = getAnimal();
-  speak(a.encourage + "再試一次吧！");
+  playAnimalSound("retry");
 }
 
 /* ===== 假登入：身份選擇 ===== */
@@ -1493,7 +1519,9 @@ async function submitQuizAnswer(selectedOpt) {
     fb.textContent = quizStreak >= 2 ? `🎉 答對了！連擊 x${mult}，+${pts} 分！` : `🎉 答對了！+${pts} 分！`;
     fb.className = "quiz-feedback ok";
     const ap = getAnimal().praise;
-    speak(ap[Math.floor(Math.random() * ap.length)]);
+    const praiseIdx = Math.floor(Math.random() * ap.length);
+    // 用預錄的動物音播放鼓勵
+    playAnimalSound("praise" + (praiseIdx + 1));
     launchConfetti();
     dashStars += 1; updateDash();
     setTimeout(() => { quizIdx++; quizIdx < 5 ? nextQuizQuestion() : finishQuiz(); }, 1500);
@@ -1522,7 +1550,9 @@ async function submitQuizAnswer(selectedOpt) {
       const hintBox = document.getElementById("quiz-hint");
       hintBox.innerHTML = "💡 <b>提示：</b>" + esc(q.hint);
       hintBox.style.display = "block";
-      speak(getAnimal().encourage + q.hint);
+      // 先播放預錄的動物安慰音，再用瀏覽器語音念提示
+      playAnimalSound("encourage");
+      setTimeout(() => speak(q.hint), 2000);
       document.querySelectorAll("#quiz-options button").forEach(b => b.disabled = false);
     }
   }

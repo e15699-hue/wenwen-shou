@@ -130,6 +130,10 @@
   .mode-tab .mdesc { display: block; font-size: 13px; font-weight: normal;
                      color: #999; margin-top: 4px; }
   .mode-tab.active .mdesc { color: #ff8e8e; }
+  .error-badge { display: inline-block; background: #ff6b6b; color: #fff;
+                 font-size: 14px; font-weight: bold; border-radius: 50%;
+                 min-width: 24px; height: 24px; line-height: 24px;
+                 text-align: center; padding: 0 4px; vertical-align: middle; }
   .grade-btns { display: flex; gap: 10px; margin: 12px 0; }
   .grade-btn { flex: 1; padding: 16px 8px; border-radius: 16px; border: 3px solid #e0e0e0;
                background: #fafafa; font-size: 17px; font-weight: bold; cursor: pointer;
@@ -287,6 +291,7 @@
 <div class="mode-tabs">
   <div class="mode-tab" id="tab-ask" onclick="switchMode('ask')"><span id="tab-ask-icon">📷</span> <span id="tab-ask-name">問問題</span><span class="mdesc">拍照問不會的題目</span></div>
   <div class="mode-tab active" id="tab-quiz" onclick="switchMode('quiz')">🎲 隨機出題<span class="mdesc">選年級玩數學遊戲</span></div>
+  <div class="mode-tab" id="tab-error" onclick="switchMode('error')">📝 錯題本 <span id="error-badge" class="error-badge" style="display:none;"></span><span class="mdesc">複習答錯的題目</span></div>
 </div>
 
 <!-- ===== 小孩：點數與獎勵進度 ===== -->
@@ -382,6 +387,25 @@
   <div id="quiz-result" style="display:none;text-align:center;padding:20px;"></div>
 </div>
 </div><!-- /mode-quiz -->
+
+<!-- ===== 錯題本模式 ===== -->
+<div id="mode-error" style="display:none;">
+<div class="card" id="error-card">
+  <h3 style="text-align:center;font-size:20px;">📝 我的錯題本</h3>
+  <p style="text-align:center;color:#666;" id="error-empty">太棒了！目前沒有錯題，繼續保持！🎉</p>
+  <div style="text-align:center;margin:16px 0;">
+    <button class="btn-teal" id="error-start-btn" onclick="startErrorReview()" style="display:none;font-size:19px;padding:16px 32px;">📝 開始複習錯題</button>
+  </div>
+  <div id="error-quiz" style="display:none;">
+    <div id="error-progress" style="text-align:center;color:#888;margin-bottom:8px;"></div>
+    <div id="error-question" style="font-size:22px;text-align:center;margin:16px 0;min-height:60px;"></div>
+    <div id="error-options" style="display:grid;gap:10px;max-width:400px;margin:0 auto;"></div>
+    <div id="error-feedback" style="text-align:center;margin:12px 0;min-height:30px;font-size:18px;"></div>
+    <div id="error-hint" style="display:none;background:#fff8e1;border-radius:12px;padding:12px;margin:12px 0;"></div>
+  </div>
+  <div id="error-done" style="display:none;text-align:center;padding:20px;"></div>
+</div>
+</div><!-- /mode-error -->
 
 <div class="role-switch">
   <button onclick="loginAs('parent')">👨‍👩‍👧 切換到家長區</button>
@@ -1058,6 +1082,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".collapsible-body:not(.collapsed)").forEach(b => {
     b.style.maxHeight = "none";
   });
+  updateErrorBadge();
 });
 
 function friendlyErr(e) {
@@ -1344,8 +1369,11 @@ function logout() {
 function switchMode(mode) {
   document.getElementById("tab-ask").classList.toggle("active", mode === "ask");
   document.getElementById("tab-quiz").classList.toggle("active", mode === "quiz");
+  document.getElementById("tab-error").classList.toggle("active", mode === "error");
   document.getElementById("mode-ask").style.display = mode === "ask" ? "block" : "none";
   document.getElementById("mode-quiz").style.display = mode === "quiz" ? "block" : "none";
+  document.getElementById("mode-error").style.display = mode === "error" ? "block" : "none";
+  if (mode === "error") renderErrorBook();
   window.scrollTo(0, 0);
 }
 
@@ -1575,6 +1603,8 @@ async function submitQuizAnswer(selectedOpt) {
     if (quizTries >= 2) {
       // 兩次都錯：公布答案、講解，並提供教學引導
       quizResults.push(false);
+      // 加入錯題本
+      addError(q);
       fb.textContent = `😅 正確答案是「${q.answer}」`;
       fb.className = "quiz-feedback no";
       const hintBox = document.getElementById("quiz-hint");
@@ -1651,6 +1681,127 @@ function finishQuiz() {
   updateDash();
 }
 
+/* ===== 錯題本複習 ===== */
+let errorQuestions = [], errorIdx = 0, errorTries = 0, errorMastered = 0;
+
+function renderErrorBook() {
+  updateErrorBadge();
+  document.getElementById("error-quiz").style.display = "none";
+  document.getElementById("error-done").style.display = "none";
+}
+
+function startErrorReview() {
+  errorQuestions = getErrors();
+  // 隨機打亂順序
+  for (let i = errorQuestions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [errorQuestions[i], errorQuestions[j]] = [errorQuestions[j], errorQuestions[i]];
+  }
+  errorIdx = 0;
+  errorMastered = 0;
+  document.getElementById("error-done").style.display = "none";
+  document.getElementById("error-quiz").style.display = "block";
+  nextErrorQuestion();
+  const a = getAnimal();
+  playAnimalSound("teach", `${a.name}陪你複習錯題，加油！`);
+}
+
+function nextErrorQuestion() {
+  if (errorIdx >= errorQuestions.length) {
+    finishErrorReview();
+    return;
+  }
+  errorTries = 0;
+  const q = errorQuestions[errorIdx];
+  document.getElementById("error-progress").textContent =
+    `第 ${errorIdx + 1} / ${errorQuestions.length} 題`;
+  document.getElementById("error-question").innerHTML =
+    `<div style="font-size:14px;color:#b8860b;margin-bottom:8px;">【${esc(q.type || "數學題")}】</div><div>${esc(q.question)}</div>`;
+  document.getElementById("error-feedback").textContent = "";
+  document.getElementById("error-hint").style.display = "none";
+  speak(speechText(q.question, q.type));
+  // 渲染選項（打亂順序）
+  const box = document.getElementById("error-options");
+  box.innerHTML = "";
+  const opts = [...(q.options || [])];
+  for (let i = opts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [opts[i], opts[j]] = [opts[j], opts[i]];
+  }
+  opts.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.className = "btn-teal";
+    btn.style.fontSize = "22px";
+    btn.style.padding = "18px";
+    // 是非題的 O/X 放大
+    if (opt === "⭕" || opt === "❌") btn.style.fontSize = "36px";
+    btn.textContent = opt;
+    btn.onclick = () => checkErrorAnswer(opt, btn);
+    box.appendChild(btn);
+  });
+}
+
+function checkErrorAnswer(selected, btn) {
+  const q = errorQuestions[errorIdx];
+  const fb = document.getElementById("error-feedback");
+  document.querySelectorAll("#error-options button").forEach(b => b.disabled = true);
+  btn.disabled = false;
+
+  if (String(selected).trim() === String(q.answer).trim()) {
+    // 答對：從錯題本移除
+    fb.textContent = "🎉 答對了！這題已經學會了！";
+    fb.style.color = "#27ae60";
+    btn.style.background = "#d4edda";
+    removeError(q.question);
+    errorMastered++;
+    const ap = getAnimal().praise;
+    const praiseIdx = Math.floor(Math.random() * ap.length);
+    playAnimalSound("praise" + (praiseIdx + 1), ap[praiseIdx]).then(() => {
+      errorIdx++;
+      setTimeout(nextErrorQuestion, 500);
+    });
+    launchConfetti();
+    addPoints(5); // 複習答對給 5 點
+  } else {
+    errorTries++;
+    if (errorTries >= 2) {
+      fb.textContent = `😅 再想想！正確答案是「${q.answer}」`;
+      fb.style.color = "#e74c3c";
+      btn.style.background = "#f8d7da";
+      document.getElementById("error-hint").innerHTML = "💡 <b>提示：</b>" + esc(q.hint);
+      document.getElementById("error-hint").style.display = "block";
+      speak(`沒關係，正確答案是${q.answer}。${q.hint}`);
+      setTimeout(() => { errorIdx++; nextErrorQuestion(); }, 3000);
+    } else {
+      fb.textContent = "🤔 再想想看！";
+      fb.style.color = "#e67e22";
+      document.getElementById("error-hint").innerHTML = "💡 <b>提示：</b>" + esc(q.hint);
+      document.getElementById("error-hint").style.display = "block";
+      playAnimalSound("encourage", getAnimal().encourage).then(() => {
+        speak(speechText(q.hint, q.type));
+      });
+      document.querySelectorAll("#error-options button").forEach(b => b.disabled = false);
+    }
+  }
+}
+
+function finishErrorReview() {
+  document.getElementById("error-quiz").style.display = "none";
+  const d = document.getElementById("error-done");
+  d.style.display = "block";
+  const remaining = getErrors().length;
+  d.innerHTML = `<div style="font-size:48px;">${remaining === 0 ? "🏆" : "💪"}</div>
+    <div style="font-size:22px;font-weight:bold;margin:10px 0;">
+      ${remaining === 0 ? "太厲害了！錯題全部清空！" : `複習完成！這次學會了 ${errorMastered} 題`}
+    </div>
+    <div style="font-size:16px;color:#666;">${remaining === 0 ? "繼續保持，你是最棒的！" : `還有 ${remaining} 題，下次再來挑戰吧！`}</div>
+    <button class="btn-teal" onclick="switchMode('quiz')" style="margin-top:16px;font-size:18px;">🎲 去玩隨機出題</button>`;
+  const msg = remaining === 0 ? "太厲害了！錯題全部清空，你是最棒的！" : `複習完成！這次學會了${errorMastered}題，還有${remaining}題下次再挑戰！`;
+  speak(msg);
+  if (remaining === 0) launchConfetti();
+  updateErrorBadge();
+}
+
 function resetQuiz() {
   document.getElementById("quiz-result").style.display = "none";
   document.getElementById("quiz-start-btn").style.display = "block";
@@ -1659,13 +1810,49 @@ function resetQuiz() {
 }
 
 /* ===== 獎勵系統（localStorage） ===== */
-const LS_KEYS = { points: "wws_points", rewards: "wws_rewards", todos: "wws_todos", badges: "wws_badges", daily: "wws_daily" };
+const LS_KEYS = { points: "wws_points", rewards: "wws_rewards", todos: "wws_todos", badges: "wws_badges", daily: "wws_daily", errors: "wws_errors" };
 
 function lsGet(k, def) {
   try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; }
   catch (e) { return def; }
 }
 function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+/* ===== 錯題本 ===== */
+function getErrors() { return lsGet(LS_KEYS.errors, []); }
+function addError(q) {
+  const errors = getErrors();
+  // 避免重複：同題目文字只存一次
+  if (errors.some(e => e.question === q.question)) return;
+  errors.push({
+    question: q.question,
+    answer: q.answer,
+    hint: q.hint,
+    type: q.type,
+    grade: q.grade,
+    options: q.options,
+    addedAt: Date.now()
+  });
+  lsSet(LS_KEYS.errors, errors);
+  updateErrorBadge();
+}
+function removeError(question) {
+  const errors = getErrors().filter(e => e.question !== question);
+  lsSet(LS_KEYS.errors, errors);
+  updateErrorBadge();
+}
+function updateErrorBadge() {
+  const count = getErrors().length;
+  const badge = document.getElementById("error-badge");
+  if (badge) {
+    badge.textContent = count > 0 ? count : "";
+    badge.style.display = count > 0 ? "inline-block" : "none";
+  }
+  const emptyMsg = document.getElementById("error-empty");
+  const startBtn = document.getElementById("error-start-btn");
+  if (emptyMsg) emptyMsg.style.display = count > 0 ? "none" : "block";
+  if (startBtn) startBtn.style.display = count > 0 ? "block" : "none";
+}
 
 let kidPoints = lsGet(LS_KEYS.points, 0);
 let rewards = lsGet(LS_KEYS.rewards, []);

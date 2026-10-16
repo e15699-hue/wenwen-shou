@@ -933,6 +933,14 @@ function pickBestVoice() {
       || vs.find(v => v.lang === "zh-TW")
       || vs[0];
 }
+/* 語音用文字轉換：__ 在數字題念「多少」，其他念「什麼」 */
+function speechText(text, qtype) {
+  if (!text) return text;
+  // 數學相關題型：計算、填充、應用、比大小 → 念「多少」
+  const mathTypes = ["計算題", "填充題", "應用題", "比大小"];
+  const replacement = mathTypes.includes(qtype) ? "多少" : "什麼";
+  return text.replace(/__/g, replacement);
+}
 function speak(text) {
   try {
     speechSynthesis.cancel();
@@ -1204,6 +1212,7 @@ function closeAnimalPicker() {
 
 /* ===== 教學引導系統 ===== */
 let teachingSteps = [];
+let teachingQType = "";
 let teachingIdx = 0;
 let teachingTemplates = null;
 async function loadTeachingTemplates() {
@@ -1218,6 +1227,7 @@ async function loadTeachingTemplates() {
 }
 async function startTeaching() {
   const q = quizQuestions[quizIdx];
+  teachingQType = q.type || "";
   // 優先用題目自帶的教學，否則用共用模板，最後 fallback 到 hint
   if (q.teaching && q.teaching.length) {
     teachingSteps = q.teaching;
@@ -1232,7 +1242,7 @@ async function startTeaching() {
   document.getElementById("teaching-modal").style.display = "flex";
   // 先播放預錄的教學開場（失敗時用瀏覽器語音），再念第一步
   playAnimalSound("teach", "讓我來教你！");
-  setTimeout(() => speak(teachingSteps[0]), 1500);
+  setTimeout(() => speak(speechText(teachingSteps[0], teachingQType)), 1500);
 }
 function renderTeachingStep() {
   const total = teachingSteps.length;
@@ -1256,7 +1266,7 @@ function teachingNav(dir) {
   }
   teachingIdx = Math.max(0, Math.min(total - 1, teachingIdx + dir));
   renderTeachingStep();
-  speak(teachingSteps[teachingIdx]);
+  speak(speechText(teachingSteps[teachingIdx], teachingQType));
 }
 function closeTeaching() {
   document.getElementById("teaching-modal").style.display = "none";
@@ -1460,7 +1470,7 @@ async function nextQuizQuestion() {
     quizQuestions.push(q);
     // 顯示題型標籤
     qEl.innerHTML = `<div style="font-size:14px;color:#b8860b;margin-bottom:8px;">【${esc(q.type || "數學題")}】</div><div>${esc(q.question)}</div>`;
-    speak(q.question);
+    speak(speechText(q.question, q.type));
     // 渲染選項按鈕
     renderQuizOptions(q);
   } catch (e) {
@@ -1559,7 +1569,7 @@ async function submitQuizAnswer(selectedOpt) {
       hintBox.style.display = "block";
       // 先播放預錄的動物安慰音（失敗時用瀏覽器語音），再念提示
       playAnimalSound("encourage", getAnimal().encourage);
-      setTimeout(() => speak(q.hint), 2000);
+      setTimeout(() => speak(speechText(q.hint, q.type)), 2000);
       document.querySelectorAll("#quiz-options button").forEach(b => b.disabled = false);
     }
   }

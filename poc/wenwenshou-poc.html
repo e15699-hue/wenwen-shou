@@ -1149,6 +1149,9 @@ const ANIMALS = [
     praise: ["喵～太厲害了！", "咪咪覺得你好棒喵！", "喵嗚～答對了！"],
     encourage: "喵～再想想看，咪咪陪你！",
     sound: "喵～",
+    skillName: "幸運喵爪",
+    skillDesc: "🍀 被動：答對時 3% 機率多得 5 分！",
+    skill: { type: "bonus_points", chance: 0.03, points: 5 },
     evolutions: [
       { name: "咪咪", img: "images/cat_stage1.png" },
       { name: "星星咪", img: "images/cat_stage2.png" },
@@ -1160,6 +1163,9 @@ const ANIMALS = [
     praise: ["汪！太棒了！", "豆豆好開心！你答對了！", "汪汪汪！厲害！"],
     encourage: "汪！再試一次，豆豆相信你！",
     sound: "汪！",
+    skillName: "忠犬守護",
+    skillDesc: "🛡️ 被動：連擊中斷時 15% 機率保留連擊！",
+    skill: { type: "keep_streak", chance: 0.15 },
     evolutions: [
       { name: "豆豆", img: "images/dog_stage1.png" },
       { name: "項圈豆", img: "images/dog_stage2.png" },
@@ -1171,6 +1177,9 @@ const ANIMALS = [
     praise: ["哇！你好聰明！", "跳跳好高興！答對了！", "太棒了！跳起來！"],
     encourage: "沒關係，跳跳陪你慢慢想！",
     sound: "",
+    skillName: "跳躍驚喜",
+    skillDesc: "✨ 被動：答對時 2% 機率得分加倍！",
+    skill: { type: "double_points", chance: 0.02 },
     evolutions: [
       { name: "跳跳", img: "images/rabbit_stage1.png" },
       { name: "花花跳", img: "images/rabbit_stage2.png" },
@@ -1182,6 +1191,9 @@ const ANIMALS = [
     praise: ["圓圓覺得你超厲害！", "答對了！圓圓請你吃竹子！", "哇～好棒！"],
     encourage: "慢慢來，圓圓等你！",
     sound: "",
+    skillName: "竹林分享",
+    skillDesc: "🎋 被動：答對時 2% 機率多得 3 分！",
+    skill: { type: "bonus_points", chance: 0.02, points: 3 },
     evolutions: [
       { name: "圓圓", img: "images/panda_stage1.png" },
       { name: "竹竹圓", img: "images/panda_stage2.png" },
@@ -1193,6 +1205,9 @@ const ANIMALS = [
     praise: ["小乖就知道你會答對！", "太聰明了！跟小乖一樣！", "答對了！真有你的！"],
     encourage: "動動腦，小乖相信你想得出來！",
     sound: "",
+    skillName: "機靈閃避",
+    skillDesc: "💨 被動：答錯時 8% 機率不中斷連擊！",
+    skill: { type: "keep_streak", chance: 0.08 },
     evolutions: [
       { name: "小乖", img: "images/fox_stage1.png" },
       { name: "蓬蓬乖", img: "images/fox_stage2.png" },
@@ -1204,6 +1219,9 @@ const ANIMALS = [
     praise: ["哼哼！答對了！", "胖胖覺得你好厲害！", "哇！胖胖好佩服你！"],
     encourage: "哼哼，別急，慢慢想！",
     sound: "哼哼！",
+    skillName: "福氣滿滿",
+    skillDesc: "🍀 被動：每天第一次答對多得 10 分！",
+    skill: { type: "daily_bonus", points: 10 },
     evolutions: [
       { name: "胖胖", img: "images/pig_stage1.png" },
       { name: "學士胖", img: "images/pig_stage2.png" },
@@ -1413,7 +1431,8 @@ function openAnimalPicker() {
     b.innerHTML =
       `<img src="${evo.img}" alt="${evo.name}" style="width:72px;height:72px;object-fit:contain;" onerror="this.outerHTML='<div style=&quot;font-size:48px;&quot;>${a.icon}</div>';">` +
       '<div style="font-size:15px;font-weight:bold;color:#333;">' + evo.name + '</div>' +
-      '<div style="font-size:11px;color:#ff9800;font-weight:bold;background:#fff3e0;padding:2px 8px;border-radius:10px;">Lv.' + lvl + ' ' + getLevelTitle(lvl) + '</div>';
+      '<div style="font-size:11px;color:#ff9800;font-weight:bold;background:#fff3e0;padding:2px 8px;border-radius:10px;">Lv.' + lvl + ' ' + getLevelTitle(lvl) + '</div>' +
+      '<div style="font-size:10px;color:#7b1fa2;background:#f3e5f5;padding:3px 6px;border-radius:8px;margin-top:2px;line-height:1.3;">✨ ' + a.skillName + '</div>';
     b.onclick = () => setAnimal(i);
     grid.appendChild(b);
   });
@@ -1768,7 +1787,17 @@ async function submitQuizAnswer(selectedOpt) {
       earnedPts = 0;
       fb.textContent = `🎉 答對了！（重複題型不計分）`;
     } else {
-      fb.textContent = quizStreak >= 2 ? `🎉 答對了！連擊 x${mult}，+${pts} 分！` : `🎉 答對了！+${pts} 分！`;
+      // 被動技能觸發
+      const skill = triggerCorrectSkill();
+      if (skill.bonus === -1) {
+        earnedPts = pts * 2;
+        fb.textContent = `🎉 答對了！${skill.msg} +${earnedPts} 分！`;
+      } else if (skill.bonus > 0) {
+        earnedPts = pts + skill.bonus;
+        fb.textContent = quizStreak >= 2 ? `🎉 答對了！連擊 x${mult}，${skill.msg} +${earnedPts} 分！` : `🎉 答對了！${skill.msg} +${earnedPts} 分！`;
+      } else {
+        fb.textContent = quizStreak >= 2 ? `🎉 答對了！連擊 x${mult}，+${pts} 分！` : `🎉 答對了！+${pts} 分！`;
+      }
     }
     quizScore += earnedPts;
     quizResults.push(true);
@@ -1786,7 +1815,13 @@ async function submitQuizAnswer(selectedOpt) {
     addAnimalXP(getAnimal().audioKey, 10);
   } else {
     quizTries++;
-    quizStreak = 0;
+    // 被動技能：保連擊
+    const skill = triggerWrongSkill();
+    if (skill.keep) {
+      fb.textContent = `😅 答錯了！${skill.msg}`;
+    } else {
+      quizStreak = 0;
+    }
     if (quizTries >= 2) {
       // 兩次都錯：不給答案，只給引導（死不給答案原則）
       quizResults.push(false);
@@ -2082,13 +2117,9 @@ function addAnimalXP(audioKey, amount) {
     const newStage = newLevel >= 7 ? 2 : newLevel >= 3 ? 1 : 0;
     const evoChanged = newStage > oldStage;
     const newEvoName = a.evolutions[newStage].name;
+    const newEvoImg = a.evolutions[newStage].img;
     setTimeout(() => {
-      let msg = `🎉 恭喜！${a.name}升級到 Lv.${newLevel}「${getLevelTitle(newLevel)}」了！`;
-      if (evoChanged) {
-        msg += `\n🌟 進化了！變成「${newEvoName}」！`;
-      }
-      // 用對話框顯示升級
-      if (confirm(msg + "\n要繼續玩嗎？")) {}
+      showLevelUpModal(a, newLevel, evoChanged, newEvoName, newEvoImg);
       let speakMsg = `太棒了！${a.name}升級了！現在是${getLevelTitle(newLevel)}！`;
       if (evoChanged) {
         speakMsg += `進化成${newEvoName}了！`;
@@ -2098,6 +2129,46 @@ function addAnimalXP(audioKey, amount) {
       applyAnimal(); // 更新顯示進化後的圖片
     }, 800);
   }
+}
+/* ===== 升級慶祝彈窗 ===== */
+function showLevelUpModal(animal, level, evolved, evoName, evoImg) {
+  // 移除舊的
+  const old = document.getElementById("levelup-modal");
+  if (old) old.remove();
+  
+  const modal = document.createElement("div");
+  modal.id = "levelup-modal";
+  modal.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;justify-content:center;align-items:center;animation:fadeIn .3s;";
+  
+  const title = getLevelTitle(level);
+  const evoHtml = evolved ? 
+    `<div style="margin:12px 0;padding:12px;background:linear-gradient(135deg,#fff9c4,#ffeb3b);border-radius:16px;border:2px solid #ffc107;">
+       <div style="font-size:20px;font-weight:bold;color:#f57f17;">🌟 進化！🌟</div>
+       <div style="font-size:18px;font-weight:bold;color:#e65100;margin-top:4px;">變成「${evoName}」了！</div>
+     </div>` : "";
+  
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:24px;padding:32px 28px;max-width:340px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.3);animation:popIn .4s cubic-bezier(.68,-.55,.27,1.55);">
+      <div style="font-size:48px;margin-bottom:8px;">🎉</div>
+      <img src="${evoImg}" alt="${evoName}" style="width:120px;height:120px;object-fit:contain;margin:8px auto;display:block;filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));" onerror="this.style.display='none';">
+      <div style="font-size:22px;font-weight:bold;color:#333;margin:8px 0;">${evoName}</div>
+      <div style="display:inline-block;background:linear-gradient(135deg,#ff9800,#f57c00);color:#fff;font-size:18px;font-weight:bold;padding:8px 20px;border-radius:20px;margin:8px 0;box-shadow:0 3px 8px rgba(255,152,0,.4);">
+        Lv.${level} ${title}
+      </div>
+      ${evoHtml}
+      <div style="font-size:14px;color:#666;margin:12px 0;">✨ ${getSkillDisplay(animal)}</div>
+      <button onclick="document.getElementById('levelup-modal').remove();" style="margin-top:12px;padding:12px 40px;font-size:17px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#66bb6a,#43a047);border:none;border-radius:25px;cursor:pointer;box-shadow:0 4px 12px rgba(76,175,80,.4);">
+        繼續玩！💪
+      </button>
+    </div>
+    <style>
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes popIn { 0% { transform: scale(.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+  `;
+  document.body.appendChild(modal);
+  // 點背景關閉
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
 }
 function updateDailyPointsDisplay() {
   const el = document.getElementById("daily-points-info");
@@ -2116,6 +2187,71 @@ function getEvolutionInfo(audioKey) {
   const a = ANIMALS.find(x => x.audioKey === audioKey);
   const stage = getEvolutionStage(audioKey);
   return a.evolutions[stage];
+}
+/* ===== 被動技能系統（隨等級成長） ===== */
+function getSkillEffect(animal) {
+  const level = getAnimalLevel(animal.audioKey);
+  const base = animal.skill;
+  const lv = level - 1; // Lv.1 時加成為 0
+  switch (base.type) {
+    case "bonus_points":
+      return { type: base.type,
+               chance: Math.min(base.chance + lv * 0.002, 0.10),
+               points: base.points + Math.floor(lv / 2) };
+    case "double_points":
+      return { type: base.type,
+               chance: Math.min(base.chance + lv * 0.0015, 0.06) };
+    case "keep_streak":
+      return { type: base.type,
+               chance: Math.min(base.chance + lv * 0.01, 0.35) };
+    case "daily_bonus":
+      return { type: base.type,
+               points: base.points + lv };
+    default: return base;
+  }
+}
+function getSkillDisplay(animal) {
+  const e = getSkillEffect(animal);
+  const pct = (e.chance * 100).toFixed(1);
+  const lv = getAnimalLevel(animal.audioKey);
+  switch (e.type) {
+    case "bonus_points": return `${animal.skillName} Lv.${lv}：答對時 ${pct}% 機率多得 ${e.points} 分！`;
+    case "double_points": return `${animal.skillName} Lv.${lv}：答對時 ${pct}% 機率得分加倍！`;
+    case "keep_streak": return `${animal.skillName} Lv.${lv}：答錯時 ${pct}% 機率保留連擊！`;
+    case "daily_bonus": return `${animal.skillName} Lv.${lv}：每天第一次答對多得 ${e.points} 分！`;
+    default: return animal.skillDesc;
+  }
+}
+// 答對時觸發技能（加分系）
+function triggerCorrectSkill() {
+  const a = getAnimal();
+  const e = getSkillEffect(a);
+  let bonus = 0, msg = "";
+  if (e.type === "bonus_points" && Math.random() < e.chance) {
+    bonus = e.points;
+    msg = `🍀 ${a.skillName}發動！多得 ${bonus} 分！`;
+  } else if (e.type === "double_points" && Math.random() < e.chance) {
+    bonus = -1; // 標記為加倍，由呼叫方處理
+    msg = `✨ ${a.skillName}發動！得分加倍！`;
+  } else if (e.type === "daily_bonus") {
+    const today = new Date().toISOString().slice(0, 10);
+    const key = "wws_daily_skill_" + a.audioKey;
+    if (localStorage.getItem(key) !== today) {
+      localStorage.setItem(key, today);
+      bonus = e.points;
+      msg = `🍀 ${a.skillName}發動！每日首答對多得 ${bonus} 分！`;
+    }
+  }
+  return { bonus, msg };
+}
+// 答錯時觸發技能（保連擊系）
+function triggerWrongSkill() {
+  const a = getAnimal();
+  const e = getSkillEffect(a);
+  if (e.type === "keep_streak" && Math.random() < e.chance && quizStreak > 0) {
+    return { keep: true, msg: `🛡️ ${a.skillName}發動！連擊保留！` };
+  }
+  return { keep: false, msg: "" };
 }
 function updateAnimalLevelDisplay() {
   const a = getAnimal();

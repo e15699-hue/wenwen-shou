@@ -244,14 +244,21 @@ function buyDeco(id){const it=DECO_ITEMS.find(x=>x.id===id);if(kidPoints<it.pric
 function openDecoShop(){let m=document.getElementById("deco-modal");if(m)m.remove();m=document.createElement("div");m.id="deco-modal";m.style.cssText="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:10001;display:flex;justify-content:center;align-items:center;padding:16px;";const ow=getDeco().length;const items=DECO_ITEMS.map(d=>'<div style="background:#fff;border:2px solid #e0e0e0;border-radius:16px;padding:12px;text-align:center"><div style="font-size:44px">'+d.icon+'</div><div style="font-size:14px;font-weight:bold">'+d.name+'</div><div style="font-size:13px;color:#f57f17;font-weight:bold">🪙 '+d.price+'點</div><button onclick="buyDeco(\''+d.id+'\')" style="margin-top:8px;padding:8px 16px;font-size:13px;font-weight:bold;color:#fff;background:linear-gradient(135deg,#7e57c2,#5c6bc0);border:none;border-radius:12px;cursor:pointer">購買</button></div>').join("");m.innerHTML='<div style="background:#f5f5f5;border-radius:24px;padding:20px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto"><h2 style="margin:0;font-size:20px;text-align:center">🏡 農場布置</h2><p style="text-align:center;font-size:13px;color:#666">已放置 '+ow+' 個｜💰 '+kidPoints+' 點</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+items+'</div><button onclick="document.getElementById(\'deco-modal\').remove()" style="margin-top:12px;width:100%;padding:12px;background:#9e9e9e;color:#fff;border:none;border-radius:12px;font-size:14px;cursor:pointer">關閉</button></div>';document.body.appendChild(m);m.addEventListener("click",e=>{if(e.target===m)m.remove();});}
 setTimeout(()=>{const sp=document.getElementById("animal-spot"),bg=document.getElementById("animal-big-icon");if(sp&&bg){sp.appendChild(bg);}if(typeof renderDeco==="function")renderDeco();},1200);
 
-// ===== 活體小動物走動系統 =====
-const Walker={x:50,y:70,tx:50,ty:70,speed:0.25,moving:false,paused:false,el:null,
-init(){this.el=document.getElementById("animal-walker");if(!this.el){setTimeout(()=>this.init(),1000);return;}this.pickTarget();setInterval(()=>this.tick(),50);},
-pickTarget(){this.tx=15+Math.random()*70;this.ty=55+Math.random()*30;},
-tick(){if(this.paused||!this.el)return;
+// ===== 活體小動物走動系統（慢速散步版：限縮草地區域＋休息＋陰影＋名牌）=====
+const Walker={x:50,y:68,tx:50,ty:68,speed:0.06,moving:false,paused:false,el:null,resting:false,
+init(){this.el=document.getElementById("animal-walker");if(!this.el){setTimeout(()=>this.init(),1000);return;}
+// 加上陰影與名牌
+if(!this.el.querySelector(".walker-shadow")){const sh=document.createElement("div");sh.className="walker-shadow";this.el.appendChild(sh);}
+if(!this.el.querySelector(".walker-nametag")){const nt=document.createElement("div");nt.className="walker-nametag";nt.id="walker-nametag";this.el.appendChild(nt);this.updateNametag();}
+this.pickTarget();setInterval(()=>this.tick(),50);},
+updateNametag(){try{const nt=document.getElementById("walker-nametag");if(!nt||typeof getAnimal!=="function")return;const a=getAnimal();const evo=(typeof getEvolutionInfo==="function")?getEvolutionInfo(a.audioKey):null;nt.textContent=(evo?evo.name:"")+ " Lv."+(a.lv||1);}catch(e){}},
+pickTarget(){this.tx=12+Math.random()*76;this.ty=60+Math.random()*14;},
+tick(){if(this.paused||!this.el||this.resting)return;
 try{if(typeof isFainted==="function"&&typeof getAnimal==="function"&&isFainted(getAnimal().audioKey)){if(typeof SpriteAnim!=="undefined"&&SpriteAnim.active)SpriteAnim.stop();return;}}catch(e){}
 const dx=this.tx-this.x,dy=this.ty-this.y,dist=Math.hypot(dx,dy);
-if(dist<2){this.moving=false;this.el.classList.remove("walking");if(typeof SpriteAnim!=="undefined"&&SpriteAnim.active)SpriteAnim.stop();if(Math.random()<0.03)this.pickTarget();return;}
+if(dist<1.5){this.moving=false;this.el.classList.remove("walking");if(typeof SpriteAnim!=="undefined"&&SpriteAnim.active)SpriteAnim.stop();
+// 到達後休息 2~5 秒再出發（悠閒散步，不亂跑）
+this.resting=true;setTimeout(()=>{this.resting=false;this.pickTarget();},2000+Math.random()*3000);return;}
 this.moving=true;this.el.classList.add("walking");
 if(typeof SpriteAnim!=="undefined"&&typeof getAnimal==="function"){try{SpriteAnim.start(getAnimal().audioKey);}catch(e){}}
 this.x+=dx/dist*this.speed;this.y+=dy/dist*this.speed;
@@ -1818,6 +1825,7 @@ function applyShinyToMain() {
   const wrapped = function() {
     _orig.apply(this, arguments);
     applyShinyToMain();
+    try{if(typeof Walker!=="undefined"&&Walker.updateNametag)Walker.updateNametag();}catch(e){}
   };
   wrapped._shinyWrapped = true;
   window.applyAnimal = wrapped;

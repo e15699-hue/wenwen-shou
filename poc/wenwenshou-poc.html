@@ -950,10 +950,9 @@ function speak(text) {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "zh-TW";
-    // 使用當前小動物的聲音特色
-    const a = getAnimal();
-    u.rate = a.rate || 0.95;
-    u.pitch = a.pitch || 1.1;
+    // 念題目用正常 Google 語音（不加動物音調）
+    u.rate = 0.95;
+    u.pitch = 1.0;
     const v = pickBestVoice();
     if (v) u.voice = v;
     speechSynthesis.speak(u);
@@ -1140,9 +1139,9 @@ function speakAndWait(text) {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.lang = "zh-TW";
-      const a = getAnimal();
-      u.rate = a.rate || 0.95;
-      u.pitch = a.pitch || 1.1;
+      // 用正常 Google 語音（不加動物音調）
+      u.rate = 0.95;
+      u.pitch = 1.0;
       const v = pickBestVoice();
       if (v) u.voice = v;
       let done = false;

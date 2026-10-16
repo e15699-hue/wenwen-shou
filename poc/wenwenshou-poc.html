@@ -304,6 +304,7 @@
 <div class="points-bar">
   <span>🪙 我的點數</span>
   <span class="pts"><span id="kid-points">0</span> 點</span>
+  <span style="font-size:12px;color:#7a5b00;" id="daily-points-info"></span>
 </div>
 <div id="animal-level"></div>
 <div id="kid-rewards"></div>
@@ -1102,6 +1103,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   updateErrorBadge();
   updateAnimalLevelDisplay();
+  updateDailyPointsDisplay();
 });
 
 function friendlyErr(e) {
@@ -1619,9 +1621,16 @@ async function submitQuizAnswer(selectedOpt) {
     quizStreak++;
     const mult = Math.min(quizStreak, 5);  // 連擊加成最高 x5
     const pts = base * mult;
-    quizScore += pts;
+    // 防刷分：檢查重複題型（每題獨立檢查）
+    let earnedPts = pts;
+    if (checkRepeatType(q.type)) {
+      earnedPts = 0;
+      fb.textContent = `🎉 答對了！（重複題型不計分）`;
+    } else {
+      fb.textContent = quizStreak >= 2 ? `🎉 答對了！連擊 x${mult}，+${pts} 分！` : `🎉 答對了！+${pts} 分！`;
+    }
+    quizScore += earnedPts;
     quizResults.push(true);
-    fb.textContent = quizStreak >= 2 ? `🎉 答對了！連擊 x${mult}，+${pts} 分！` : `🎉 答對了！+${pts} 分！`;
     fb.className = "quiz-feedback ok";
     const ap = getAnimal().praise;
     const praiseIdx = Math.floor(Math.random() * ap.length);
@@ -1937,6 +1946,13 @@ function addAnimalXP(audioKey, amount) {
     }, 800);
   }
 }
+function updateDailyPointsDisplay() {
+  const el = document.getElementById("daily-points-info");
+  if (el) {
+    const today = getTodayPoints();
+    el.textContent = `今日 ${today}/${DAILY_POINTS_CAP}`;
+  }
+}
 function updateAnimalLevelDisplay() {
   const a = getAnimal();
   const level = getAnimalLevel(a.audioKey);
@@ -1998,13 +2014,93 @@ const BADGE_DEFS = [
   { id: "daily", icon: "📅", name: "天天練習", desc: "完成今日任務" },
 ];
 
+/* ===== 防刷分機制 ===== */
+const DAILY_POINTS_CAP = 200;
+function getTodayPointsKey() {
+  return "wws_daily_points_" + new Date().toISOString().slice(0, 10);
+}
+function getTodayPoints() {
+  return lsGet(getTodayPointsKey(), 0);
+}
+function addTodayPoints(n) {
+  const total = getTodayPoints() + n;
+  lsSet(getTodayPointsKey(), total);
+  return total;
+}
+function checkAbnormalSpeed() {
+  // 記錄答題時間戳，檢測異常速度
+  const key = "wws_answer_times";
+  const now = Date.now();
+  let times = lsGet(key, []);
+  times.push(now);
+  // 只保留最近 10 次
+  times = times.slice(-10);
+  lsSet(key, times);
+  if (times.length >= 5) {
+    // 檢查最近 5 題的平均間隔
+    const intervals = [];
+    for (let i = 1; i < times.length; i++) {
+      intervals.push(times[i] - times[i-1]);
+    }
+    const recent = intervals.slice(-4);
+    const avg = recent.reduce((a, b) => a + b, 0) / recent.length;
+    // 平均 < 2 秒可能是刷分（正常小孩需要思考時間）
+    if (avg < 2000) {
+      return true;
+    }
+  }
+  return false;
+}
+function checkRepeatType(qtype) {
+  // 檢查短時間內重複題型
+  const key = "wws_recent_types";
+  const now = Date.now();
+  let recent = lsGet(key, []);
+  // 只保留 5 分鐘內的
+  recent = recent.filter(r => now - r.time < 5 * 60 * 1000);
+  recent.push({ type: qtype, time: now });
+  lsSet(key, recent);
+  // 5 分鐘內同題型出現 4 次以上，不給分
+  const sameType = recent.filter(r => r.type === qtype).length;
+  return sameType >= 4;
+}
+
 function addPoints(n) {
-  kidPoints += n;
-  lsSet(LS_KEYS.points, kidPoints);
-  document.getElementById("kid-points").textContent = kidPoints;
-  checkBadges();
-  checkRewardMilestones();
-  renderKidRewards();
+  // 防刷分檢查
+  let actualPoints = n;
+  let reason = "";
+  
+  // 1. 每日上限檢查
+  const todayTotal = getTodayPoints();
+  if (todayTotal >= DAILY_POINTS_CAP) {
+    actualPoints = 0;
+    reason = "今日點數已達上限";
+  } else if (todayTotal + n > DAILY_POINTS_CAP) {
+    actualPoints = DAILY_POINTS_CAP - todayTotal;
+    reason = "今日點數已達上限";
+  }
+  
+  // 2. 異常速度檢查
+  if (actualPoints > 0 && checkAbnormalSpeed()) {
+    actualPoints = 0;
+    reason = "作答速度異常，不給分";
+  }
+  
+  if (actualPoints > 0) {
+    kidPoints += actualPoints;
+    lsSet(LS_KEYS.points, kidPoints);
+    addTodayPoints(actualPoints);
+    document.getElementById("kid-points").textContent = kidPoints;
+    updateDailyPointsDisplay();
+    checkBadges();
+    checkRewardMilestones();
+    renderKidRewards();
+  } else if (reason) {
+    // 顯示原因（可選）
+    console.log("防刷分：" + reason);
+  }
+  
+  return { points: actualPoints, reason: reason };
 }
 function earnBadge(id) {
   if (badges.includes(id)) return;

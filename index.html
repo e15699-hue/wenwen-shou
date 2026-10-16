@@ -1322,17 +1322,7 @@ const QUIZ_TYPE_NAMES = ["計算題", "填充題", "應用題", "比大小", "�
 async function loadBank(grade) {
   if (bankLoaded[grade]) return localBank[grade];
   try {
-    // 先試著載入合併版（舊格式）
-    let res = await fetch("data/questions_" + grade + ".json");
-    if (res.ok) {
-      const qs = await res.json();
-      localBank[grade] = qs;
-      bankLoaded[grade] = true;
-      return qs;
-    }
-  } catch (e) {}
-  try {
-    // 載入拆分版（按題型）
+    // 載入拆分版（按題型，每個檔案較小）
     const all = [];
     for (const t of QUIZ_TYPE_NAMES) {
       const r = await fetch(`data/questions_${grade}_${t}.json`);

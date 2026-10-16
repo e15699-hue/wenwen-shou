@@ -1133,37 +1133,58 @@ const ANIMALS = [
     encourage: "哼哼，別急，慢慢想！",
     sound: "哼哼！" },
 ];
-/* 預錄音檔播放（固定台詞用 AI 動物音） */
+/* 瀏覽器語音播放，播完才 resolve */
+function speakAndWait(text) {
+  return new Promise((resolve) => {
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "zh-TW";
+      const a = getAnimal();
+      u.rate = a.rate || 0.95;
+      u.pitch = a.pitch || 1.1;
+      const v = pickBestVoice();
+      if (v) u.voice = v;
+      let done = false;
+      const finish = () => { if (!done) { done = true; resolve(); } };
+      u.onend = finish;
+      u.onerror = finish;
+      setTimeout(finish, 15000); // 15秒超時保護
+      speechSynthesis.speak(u);
+    } catch (e) { resolve(); }
+  });
+}
+/* 預錄音檔播放（固定台詞用 AI 動物音），播完才 resolve */
 let audioCache = {};
 function playAnimalSound(soundKey, fallbackText) {
-  try {
-    const a = getAnimal();
-    const key = `${a.audioKey}_${soundKey}`;
-    // 如果音檔載入失敗，用瀏覽器語音當備案
-    const audio = new Audio(`audio/${key}.mp3`);
-    audio.play().catch(() => {
-      if (fallbackText) speak(fallbackText);
-    });
-    // 音檔載入錯誤時也用備案
-    audio.onerror = () => {
-      if (fallbackText) speak(fallbackText);
-    };
-    return true;
-  } catch (e) {
-    if (fallbackText) speak(fallbackText);
-    return false;
-  }
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    try {
+      const a = getAnimal();
+      const key = `${a.audioKey}_${soundKey}`;
+      const audio = new Audio(`audio/${key}.mp3`);
+      audio.onended = finish;
+      audio.onerror = () => {
+        // 音檔載入失敗，用瀏覽器語音當備案，念完才繼續
+        if (fallbackText) speakAndWait(fallbackText).then(finish);
+        else finish();
+      };
+      setTimeout(finish, 10000); // 10秒超時保護
+      audio.play().catch(() => {
+        if (fallbackText) speakAndWait(fallbackText).then(finish);
+        else finish();
+      });
+    } catch (e) {
+      if (fallbackText) speakAndWait(fallbackText).then(finish);
+      else finish();
+    }
+  });
 }
 // 混合播放：固定台詞用預錄音檔，動態內容用瀏览器語音
 function speakAnimal(soundKey, fallbackText) {
-  // 先試著播放預錄音檔
-  if (playAnimalSound(soundKey)) {
-    // 預錄音檔播放中，同時用瀏覽器語音當備份（如果音檔失敗）
-    // 這裡我們只播放音檔，不用瀏覽器語音重複
-    return;
-  }
-  // 沒有預錄音檔時用瀏覽器語音
-  if (fallbackText) speak(fallbackText);
+  // 先試著播放預錄音檔（播完才繼續）
+  return playAnimalSound(soundKey, fallbackText);
 }
 let currentAnimal = null;
 function getAnimal() {
@@ -1244,9 +1265,10 @@ async function startTeaching() {
   document.getElementById("teaching-animal").textContent = a.icon;
   renderTeachingStep();
   document.getElementById("teaching-modal").style.display = "flex";
-  // 先播放預錄的教學開場（失敗時用瀏覽器語音），再念第一步
-  playAnimalSound("teach", "讓我來教你！");
-  setTimeout(() => speak(speechText(teachingSteps[0], teachingQType)), 1500);
+  // 先播放預錄的教學開場，播完才念第一步
+  playAnimalSound("teach", "讓我來教你！").then(() => {
+    speak(speechText(teachingSteps[0], teachingQType));
+  });
 }
 function renderTeachingStep() {
   const total = teachingSteps.length;
@@ -1541,11 +1563,13 @@ async function submitQuizAnswer(selectedOpt) {
     fb.className = "quiz-feedback ok";
     const ap = getAnimal().praise;
     const praiseIdx = Math.floor(Math.random() * ap.length);
-    // 用預錄的動物音播放鼓勵（失敗時用瀏覽器語音）
-    playAnimalSound("praise" + (praiseIdx + 1), ap[praiseIdx]);
+    // 用預錄的動物音播放鼓勵，播完才跳下一題
+    playAnimalSound("praise" + (praiseIdx + 1), ap[praiseIdx]).then(() => {
+      quizIdx++;
+      quizIdx < 5 ? nextQuizQuestion() : finishQuiz();
+    });
     launchConfetti();
     dashStars += 1; updateDash();
-    setTimeout(() => { quizIdx++; quizIdx < 5 ? nextQuizQuestion() : finishQuiz(); }, 1500);
   } else {
     quizTries++;
     quizStreak = 0;
@@ -1571,9 +1595,10 @@ async function submitQuizAnswer(selectedOpt) {
       const hintBox = document.getElementById("quiz-hint");
       hintBox.innerHTML = "💡 <b>提示：</b>" + esc(q.hint);
       hintBox.style.display = "block";
-      // 先播放預錄的動物安慰音（失敗時用瀏覽器語音），再念提示
-      playAnimalSound("encourage", getAnimal().encourage);
-      setTimeout(() => speak(speechText(q.hint, q.type)), 2000);
+      // 先播放預錄的動物安慰音，播完才念提示
+      playAnimalSound("encourage", getAnimal().encourage).then(() => {
+        speak(speechText(q.hint, q.type));
+      });
       document.querySelectorAll("#quiz-options button").forEach(b => b.disabled = false);
     }
   }

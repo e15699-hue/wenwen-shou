@@ -247,10 +247,16 @@ setTimeout(()=>{const sp=document.getElementById("animal-spot"),bg=document.getE
 // ===== 活體小動物走動系統（慢速散步版：限縮草地區域＋休息＋陰影＋名牌）=====
 const Walker={x:50,y:68,tx:50,ty:68,speed:0.06,moving:false,paused:false,el:null,resting:false,
 init(){this.el=document.getElementById("animal-walker");if(!this.el){setTimeout(()=>this.init(),1000);return;}
-// 加上陰影與名牌
-if(!this.el.querySelector(".walker-shadow")){const sh=document.createElement("div");sh.className="walker-shadow";this.el.appendChild(sh);}
-if(!this.el.querySelector(".walker-nametag")){const nt=document.createElement("div");nt.className="walker-nametag";nt.id="walker-nametag";this.el.appendChild(nt);this.updateNametag();}
+// 名牌與陰影改掛小動物本體（#animal-big-icon）：拖拉、走路、翻面都跟著一起走
+this.attachBadge();
 this.pickTarget();setInterval(()=>this.tick(),50);},
+attachBadge(){try{
+const body=document.getElementById("animal-big-icon");if(!body)return false;
+if(!body.querySelector(".walker-shadow")){const sh=document.createElement("div");sh.className="walker-shadow";body.appendChild(sh);}
+let nt=body.querySelector(".walker-nametag");
+if(!nt){nt=document.createElement("div");nt.className="walker-nametag";nt.id="walker-nametag";body.appendChild(nt);}
+this.updateNametag();return true;
+}catch(e){return false;}},
 updateNametag(){try{const nt=document.getElementById("walker-nametag");if(!nt||typeof getAnimal!=="function")return;const a=getAnimal();const evo=(typeof getEvolutionInfo==="function")?getEvolutionInfo(a.audioKey):null;nt.textContent=(evo?evo.name:"")+ " Lv."+(a.lv||1);}catch(e){}},
 pickTarget(){this.tx=12+Math.random()*76;this.ty=60+Math.random()*14;},
 tick(){if(this.paused||!this.el||this.resting)return;
@@ -1825,6 +1831,7 @@ function applyShinyToMain() {
   const wrapped = function() {
     _orig.apply(this, arguments);
     applyShinyToMain();
+    try{if(typeof Walker!=="undefined"&&Walker.attachBadge)Walker.attachBadge();}catch(e){}
     try{if(typeof Walker!=="undefined"&&Walker.updateNametag)Walker.updateNametag();}catch(e){}
   };
   wrapped._shinyWrapped = true;
